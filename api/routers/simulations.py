@@ -87,5 +87,6 @@ async def run_simulation(
         num_simulations=config.num_simulations,
         seed=config.seed,
         retirement_age=config.retirement_age,
+        planning_age=config.planning_age,
         personas=persona_results,
     )

@@ -178,20 +178,13 @@ A plan design is defined by the following inputs, presented as a card-based form
 
 ### 7.3 Modeling Assumptions & Monte Carlo Engine
 
-**Return Assumptions by Asset Class:**
+**Return Assumptions:**
 
-| Asset Class | Expected Return | Standard Deviation |
-|-------------|----------------|-------------------|
-| U.S. Equity | 7.5% | 17.0% |
-| International Equity | 7.0% | 19.0% |
-| Fixed Income | 4.0% | 5.5% |
-| Cash / Stable Value | 3.0% | 1.0% |
-
-Target date funds use a glide path that blends these asset classes based on years to retirement, shifting from ~90% equity at 40+ years out to ~30% equity at retirement.
+Asset class returns are derived from historical performance analysis of benchmark indexes (see Section 9.2), not hardcoded expected returns. The simulation randomly generates returns for each asset class using the historical mean, standard deviation, distribution, and correlation characteristics. This approach follows the Fidelity P&GC methodology, using data from 1926 through the most recent year-end available.
 
 **Monte Carlo Configuration:**
-- Number of simulations: 1,000 (default), configurable up to 10,000
-- Confidence levels displayed: 50th percentile (default view), 25th, 75th, 90th
+- Number of simulations: 250 (default, per P&GC), configurable up to 1,000
+- Confidence levels displayed: 50th percentile (default view), 75th, 90th
 - Toggle: "Probability of success" mode — shows the percentage of simulation runs where the retiree has ≥$1 remaining at the planning age
 
 **Retirement Income Calculation:**
@@ -442,11 +435,17 @@ class PlanDesign(BaseModel):
     auto_escalation_cap: float = 0.10
 
 class AssetAllocation(BaseModel):
-    type: Literal["target_date", "custom"]
-    target_date_vintage: int | None = None
-    stock_pct: float | None = None
+    type: Literal["target_date", "target_mix", "custom"]
+    target_date_vintage: int | None = None       # e.g., 2065, 2040
+    target_mix: Literal[
+        "short_term", "conservative", "moderate_income",
+        "moderate", "balanced", "growth_income",
+        "growth", "aggressive_growth", "most_aggressive"
+    ] | None = None                              # P&GC nine-mix model
+    domestic_stock_pct: float | None = None       # Custom mix
+    foreign_stock_pct: float | None = None
     bond_pct: float | None = None
-    cash_pct: float | None = None
+    short_term_pct: float | None = None
 
 class Persona(BaseModel):
     id: str
@@ -461,25 +460,24 @@ class Persona(BaseModel):
     include_social_security: bool = True
 
 class MonteCarloConfig(BaseModel):
-    num_simulations: int = 1000
+    num_simulations: int = 250     # P&GC default
     seed: int | None = None
-    retirement_age: int = 67
-    planning_age: int = 93
+    retirement_age: int = 67       # SSA Full Retirement Age
+    planning_age: int = 93         # P&GC default (25% longevity age)
+    ss_claiming_age: int = 67      # Default to FRA, configurable 62-70
 
 class Assumptions(BaseModel):
-    inflation_rate: float = 0.025
-    wage_growth_rate: float = 0.03
-    equity_return: float = 0.075
-    equity_std: float = 0.17
-    bond_return: float = 0.04
-    bond_std: float = 0.055
-    cash_return: float = 0.03
-    cash_std: float = 0.01
-    comp_limit: float = 345000
-    deferral_limit: float = 23500
-    additions_limit: float = 70000
-    catchup_limit: float = 7500
-    super_catchup_limit: float = 11250
+    inflation_rate: float = 0.025            # P&GC default: 2.5%
+    wage_growth_rate: float = 0.04           # P&GC: inflation + 1.5%
+    # Asset class returns derived from historical benchmarks (see Section 9.2)
+    # These are not directly configurable in v1 — returns are drawn from
+    # historical distributions of the benchmark indexes
+    comp_limit: float = 345000               # 2026, held constant
+    deferral_limit: float = 23500            # 2026 402(g), held constant
+    additions_limit: float = 70000           # 2026 415, held constant
+    catchup_limit: float = 7500              # 2026, held constant
+    super_catchup_limit: float = 11250       # 2026, held constant
+    ss_taxable_max: float = 176100           # 2026, held constant
 
 class PersonaResult(BaseModel):
     persona_id: str
@@ -494,49 +492,165 @@ class PersonaResult(BaseModel):
 
 ---
 
-## 9. Monte Carlo Simulation Logic
+## 9. Simulation Methodology
 
-### Accumulation Phase (Working Years)
+This section documents the modeling methodology for RetireModel, aligned with the Fidelity Planning & Guidance Center Retirement Analysis methodology. All projections are hypothetical and for plan design evaluation purposes only. Results do not reflect actual investment performance and are not guarantees of future outcomes.
+
+### 9.1 Monte Carlo Simulation Framework
+
+RetireModel uses Monte Carlo simulations to project a range of hypothetical market return scenarios. Simulations are based on a historical performance analysis of asset class returns, including a range of potential returns for each asset class, volatility, and correlation, reviewed annually.
+
+**Simulation Parameters:**
+- Default: 250 simulations (matching P&GC), configurable up to 1,000
+- Time increment: 1 year
+- For each simulation, a rate of return is generated for each asset class using the mean and standard deviation of historical market index data
+- Returns are randomly generated and are required to simulate the mean, standard deviation, distribution, and correlated behavior of asset class returns
+- The same simulated market scenarios are used within a session unless otherwise updated
+
+**Confidence Levels:**
+
+| Market Conditions | Performance Assumptions Fail | Performance Assumptions Meet or Exceed | Confidence Level |
+|---|---|---|---|
+| Significantly below average | 10 out of 100 times | 90 out of 100 times | 90% |
+| Below average | 25 out of 100 times | 75 out of 100 times | 75% |
+| Average | 50 out of 100 times | 50 out of 100 times | 50% |
+
+The default view uses the 50th percentile (average market conditions). Users can toggle between 50%, 75%, and 90% confidence levels.
+
+**Probability of Success:** Total number of successful market scenarios divided by total number of market scenarios. A successful scenario is one in which all income needs are fully met through the planning age and there is at least $1 remaining.
+
+### 9.2 Asset Classes & Historical Benchmarks
+
+Asset classes are represented by benchmark return data, not actual investments. Indexes are unmanaged and it is not possible to invest directly in an index.
+
+| Asset Class | Benchmark Representation |
+|---|---|
+| Domestic Equities | S&P 500 Index (1926–1986), Dow Jones U.S. Total Market Index (1987–present) |
+| Foreign Equities | S&P 500 Index (1926–1969), MSCI EAFE Index (1970–2000), MSCI ACWI Ex USA Index (2001–present) |
+| Bonds | U.S. Intermediate-Term Bonds (1926–1975), Bloomberg U.S. Aggregate Bond Index (1976–present) |
+| Short-Term / Cash | 30-day U.S. Treasury bill rates (1926–present) |
+
+Volatility of asset classes is based on historical annual data from 1926 through the most recent year-end data available. Annual returns assume reinvestment of interest income and dividends, no transaction costs, no management or servicing fees, and annual rebalancing to the target allocation.
+
+### 9.3 Target Asset Mixes
+
+Nine model target asset mixes are available, following the P&GC definitions:
+
+| Target Asset Mix | Domestic Stock | Foreign Stock | Bonds | Short-Term |
+|---|---|---|---|---|
+| Short-Term | 0% | 0% | 0% | 100% |
+| Conservative | 14% | 6% | 50% | 30% |
+| Moderate with Income | 21% | 9% | 50% | 20% |
+| Moderate | 28% | 12% | 45% | 15% |
+| Balanced | 35% | 15% | 40% | 10% |
+| Growth with Income | 42% | 18% | 35% | 5% |
+| Growth | 49% | 21% | 25% | 5% |
+| Aggressive Growth | 60% | 25% | 15% | 0% |
+| Most Aggressive | 70% | 30% | 0% | 0% |
+
+**Target Date Fund Glide Path:** When a persona selects a target date fund vintage, the allocation shifts along a glide path from aggressive (early career) to conservative (at and through retirement). The glide path maps the years-to-retirement to one of the nine asset mixes above, transitioning through approximately: Most Aggressive (40+ years out) → Aggressive Growth → Growth → Growth with Income → Balanced (at retirement) → Moderate with Income → Conservative (15+ years into retirement).
+
+### 9.4 Accumulation Phase (Working Years)
 
 For each simulation run and each year from current age to retirement age:
 
-1. Apply wage growth (salary × (1 + wage_growth + random noise))
-2. Calculate employee deferral (salary × deferral_rate, capped at 402(g) limit + catch-up if applicable)
-3. Apply auto-escalation if enabled (deferral_rate += escalation_rate, capped at escalation_cap)
-4. Calculate employer match (apply tiered formula to deferral rate, cap match at match formula result)
-5. Calculate employer core contribution (salary × core_pct, or age/service-tiered rate)
-6. Apply 415 annual additions limit to total contributions
-7. Apply vesting to employer contributions based on tenure
-8. Generate annual return from normal distribution (mean, std) based on asset allocation
-9. For target date funds, shift allocation along glide path each year
-10. New balance = (prior balance + total contributions) × (1 + annual return)
+1. **Wage growth:** Apply salary growth rate (default: inflation + 1.5%, per P&GC methodology using Department of Labor and Census Bureau data). Salary is capped at the IRS compensation limit ($345,000 for 2026, held constant).
 
-### Distribution Phase (Retirement Years)
+2. **Employee deferrals:** Calculate based on persona's deferral rate × salary, subject to:
+   - 402(g) elective deferral limit ($23,500 for 2026)
+   - Catch-up contributions if age 50+ ($7,500) or age 60–63 super catch-up ($11,250)
+   - Auto-escalation applied annually if enabled (deferral_rate += escalation_rate, capped at escalation_cap)
 
-The withdrawal engine is designed as a pluggable interface (`WithdrawalStrategy`) to support the proprietary income model. A simple 4% rule implementation serves as the development placeholder.
+3. **Employer match:** Apply tiered match formula against employee deferral rate. Match is computed on compensation capped at the IRS compensation limit.
 
-For each year from retirement age to planning age:
+4. **Employer core contribution:** Apply fixed percentage or age/service-tiered rate against compensation (capped at IRS comp limit).
 
-1. Call `WithdrawalStrategy.calculate_withdrawal(balance, year, params)` to determine annual income
-2. Generate annual return on remaining balance based on post-retirement allocation
-3. New balance = (prior balance - withdrawal) × (1 + annual return)
-4. If balance ≤ 0, mark simulation as "failed" (depleted before planning age)
+5. **Annual additions limit:** Total employee + employer contributions capped at 415 limit ($70,000 for 2026).
 
-**WithdrawalStrategy interface:**
+6. **Vesting:** Employer match and core contributions are vested based on the scenario's vesting schedule and the persona's tenure. Unvested amounts are excluded from the projected balance.
+
+7. **Investment returns:** Generate annual return from the asset class return distributions based on the persona's asset allocation. For target date funds, shift allocation along the glide path each year.
+
+8. **Rebalancing:** At year end, the portfolio is rebalanced to the target asset allocation.
+
+9. **Balance update:** New balance = (prior balance + total vested contributions) × (1 + annual portfolio return).
+
+**IRS Limits:** All IRS limits are held constant at current-year (2026) values throughout the projection. Limits are not inflation-adjusted.
+
+**No Leakage:** The model assumes no loans, hardship withdrawals, or cashouts during the accumulation phase.
+
+### 9.5 Distribution Phase (Retirement Years)
+
+The withdrawal engine is designed as a pluggable interface (`WithdrawalStrategy`) to support the proprietary income model. A systematic withdrawal placeholder is provided for development.
+
+**WithdrawalStrategy Protocol:**
 ```python
 class WithdrawalStrategy(Protocol):
     def calculate_withdrawal(
         self, balance: float, year_in_retirement: int,
-        params: WithdrawalParams
+        retirement_balance: float, params: WithdrawalParams
     ) -> float: ...
 ```
 
-### Output Aggregation
+**Placeholder Implementation (Systematic Withdrawal):**
+For each year from retirement age to planning age:
+1. Call `WithdrawalStrategy.calculate_withdrawal()` to determine annual income amount
+2. Generate annual return on remaining balance based on post-retirement asset allocation (which continues to shift along the glide path through retirement)
+3. New balance = (prior balance - withdrawal) × (1 + annual return)
+4. If balance ≤ 0, mark simulation as "failed" (depleted before planning age)
 
-- Sort ending balances across all simulations
-- Extract percentile values (25th, 50th, 75th, 90th)
-- Calculate income replacement ratio at each percentile
-- Calculate probability of success = (runs with balance > 0 at planning age) / total runs
+**Income Replacement Ratio Calculation:**
+- Income replacement ratio = (Annual retirement income from plan + optional Social Security) / (Final pre-retirement salary)
+- All values are expressed in pre-tax, today's dollars
+- The income replacement ratio is calculated at each confidence level (50%, 75%, 90%)
+
+### 9.6 Social Security Estimation
+
+The Social Security estimator follows the Fidelity GRP Social Security Methodology, simplified for hypothetical persona modeling.
+
+**Inputs:**
+- Current age
+- Current annual compensation (salary)
+- Retirement age (defaults to 67)
+- Social Security claiming age (defaults to 67, configurable 62–70)
+
+**Estimation Method:**
+1. Assume employment start age of 22
+2. Estimate prior income history using the national average wage index (AWI) for each year, scaled to the persona's current compensation level
+3. Project future income using the salary growth assumption until the earlier of claiming age or retirement age
+4. Cap each year's earnings at the Social Security taxable maximum ($176,100 for 2026)
+5. Select the top 35 years of highest indexed earnings to calculate Average Indexed Monthly Earnings (AIME)
+6. Apply the SSA bend-point formula to AIME to calculate Primary Insurance Amount (PIA)
+7. Adjust PIA for claiming age relative to Full Retirement Age (67 for those born 1960+):
+   - Claiming before FRA: reduce benefit (up to ~30% reduction at age 62)
+   - Claiming after FRA: increase benefit by 8% per year of deferral up to age 70
+8. Social Security benefit is assumed to grow at the 2.5% inflation rate in the projection
+
+**Per-Persona Toggle:** Social Security can be included or excluded from the income replacement calculation for each persona. This allows modeling of income replacement from the plan design alone vs. total retirement income.
+
+### 9.7 Key Assumptions Summary
+
+| Assumption | Default Value | Source/Basis |
+|---|---|---|
+| General inflation rate | 2.5% | P&GC default |
+| Salary growth rate | Inflation + 1.5% (4.0%) | Dept. of Labor / Census Bureau |
+| Default retirement age | 67 | SSA Full Retirement Age |
+| Default planning age | 93 | P&GC default (25% longevity age per RP-2014 mortality tables) |
+| Monte Carlo simulations | 250 | P&GC default |
+| IRS compensation limit | $345,000 (2026) | Held constant |
+| 402(g) deferral limit | $23,500 (2026) | Held constant |
+| 415 annual additions limit | $70,000 (2026) | Held constant |
+| Catch-up (50+) | $7,500 (2026) | Held constant |
+| Super catch-up (60–63) | $11,250 (2026) | Held constant |
+| SS taxable maximum | $176,100 (2026) | Held constant |
+| Social Security COLA | 2.5% (inflation rate) | P&GC assumption |
+| Portfolio rebalancing | Annually | P&GC methodology |
+| Leakage (loans, hardships) | None | v1 simplification |
+| Tax treatment | Pre-tax, today's dollars | v1 simplification |
+
+### 9.8 Methodology Disclaimer
+
+All projections generated by RetireModel are hypothetical in nature, do not reflect actual investment results, and are not guarantees of future results. The tool uses historical returns based primarily on index performance rather than on the performance of any one security. Past performance is no guarantee of future results. It is not possible to invest directly in an index. Performance returns for actual investments will generally be reduced by fees and expenses not reflected in these hypothetical illustrations. Results may vary with each use and over time.
 
 ---
 
@@ -544,8 +658,9 @@ class WithdrawalStrategy(Protocol):
 
 **Performance:**
 - Deterministic projection (single employee, no Monte Carlo): < 100ms
-- Monte Carlo (1,000 runs, single employee): < 2 seconds
-- Monte Carlo (1,000 runs, 8 personas): < 5 seconds
+- Monte Carlo (250 runs, single employee): < 1 second
+- Monte Carlo (250 runs, 8 personas): < 3 seconds
+- Monte Carlo (1,000 runs, 8 personas): < 10 seconds
 - Frontend rendering of results: < 500ms after API response
 
 **Data Persistence:**
@@ -652,19 +767,23 @@ copies the plan design so users can create variants quickly.
 ### S05 — Monte Carlo Simulation Engine
 
 ```
-/speckit.specify Build the Monte Carlo simulation engine. Given a plan design, a 
-persona, and assumptions, simulate the accumulation phase year-by-year from current 
-age to retirement age: apply wage growth with noise, calculate employee deferrals 
-(with auto-escalation and IRS limits), calculate employer match per tiered formula, 
+/speckit.specify Build the Monte Carlo simulation engine following the Fidelity P&GC 
+methodology documented in PRD Section 9. Given a plan design, a persona, and assumptions, 
+simulate the accumulation phase year-by-year from current age to retirement age: apply 
+wage growth at inflation + 1.5%, calculate employee deferrals with auto-escalation and 
+IRS limits (held constant at 2026 values), calculate employer match per tiered formula, 
 calculate employer core contributions, enforce the 415 annual additions limit, apply 
-vesting based on tenure, generate annual returns from a normal distribution based on 
-asset allocation, and shift target-date allocations along a glide path. All values 
-are pre-tax in today's dollars. IRS limits are held constant. Run 1,000 simulations 
-by default (configurable up to 10,000). Output percentile balances (25th, 50th, 75th, 
-90th) at retirement and year-by-year trajectory data for charting.
+vesting based on tenure, and generate annual returns by randomly sampling from historical 
+asset class return distributions (domestic equity, foreign equity, bonds, short-term) 
+using their historical mean, standard deviation, and correlations since 1926. Support 
+nine target asset mixes and target-date fund glide paths per the P&GC definitions. 
+Run 250 simulations by default (configurable up to 1,000). Portfolio is rebalanced 
+annually. All values are pre-tax in today's dollars. Output percentile balances 
+(50th, 75th, 90th) at retirement, probability of success, and year-by-year trajectory 
+data for charting.
 ```
 
-**Produces:** A `SimulationEngine` class, NumPy-optimized for vectorized simulation runs, an API endpoint `POST /api/v1/workspaces/{workspace_id}/scenarios/{scenario_id}/simulate`, and response model with per-persona results at all confidence levels.
+**Produces:** A `SimulationEngine` class with historical return sampling (not hardcoded means/stds), the nine P&GC asset mixes, target-date glide path logic, an API endpoint `POST /api/v1/workspaces/{workspace_id}/scenarios/{scenario_id}/simulate`, and response model with per-persona results at all confidence levels.
 
 ---
 
@@ -673,29 +792,35 @@ by default (configurable up to 10,000). Output percentile balances (25th, 50th, 
 ```
 /speckit.specify Design a pluggable withdrawal strategy interface for the distribution 
 phase (retirement age to planning age). Define a WithdrawalStrategy protocol with a 
-calculate_withdrawal method that takes current balance, year in retirement, and 
-parameters. Implement a simple 4% rule placeholder that withdraws 4% of the initial 
-retirement balance adjusted for inflation each year. The interface must be designed so 
-that our proprietary income model can be bolted on later as a drop-in replacement 
-without changing the simulation engine.
+calculate_withdrawal method that takes current balance, year in retirement, initial 
+retirement balance, and parameters. Implement a systematic withdrawal placeholder that 
+calculates a level real (inflation-adjusted) annual withdrawal amount designed to 
+deplete the portfolio to $0 at the planning age. The post-retirement asset allocation 
+continues to shift along the target-date glide path through retirement. The interface 
+must be designed so that our proprietary income model can be bolted on later as a 
+drop-in replacement without changing the simulation engine.
 ```
 
-**Produces:** `WithdrawalStrategy` Protocol, `FourPercentRule` implementation, distribution phase integrated into the simulation engine, probability-of-success calculation (% of runs with ≥$1 at planning age), and income replacement ratio output.
+**Produces:** `WithdrawalStrategy` Protocol, `SystematicWithdrawal` implementation, distribution phase integrated into the simulation engine, probability-of-success calculation (% of runs with ≥$1 at planning age), and income replacement ratio output at 50th, 75th, and 90th percentiles.
 
 ---
 
 ### S07 — Social Security Estimation
 
 ```
-/speckit.specify Add a Social Security benefit estimator that takes current age and 
-current income as inputs and returns an estimated annual Social Security benefit at 
-the chosen retirement age. This should be a toggleable component per persona — users 
-can include or exclude Social Security from the income replacement calculation. The 
-estimate should be reasonable but does not need to replicate the full PIA bend-point 
-formula.
+/speckit.specify Add a Social Security benefit estimator following the Fidelity GRP 
+Social Security Methodology. Inputs are current age, current compensation, retirement 
+age, and claiming age (configurable 62-70, default 67). The estimator assumes 
+employment start at age 22, reconstructs an earnings history using the national 
+average wage index (AWI) scaled to current compensation, caps each year at the SS 
+taxable maximum, selects the top 35 years of indexed earnings to compute AIME, applies 
+the SSA bend-point formula for PIA, and adjusts for early/delayed claiming relative 
+to Full Retirement Age. Benefits grow at the 2.5% inflation rate. This should be a 
+toggleable component per persona — users can include or exclude Social Security from 
+the income replacement calculation.
 ```
 
-**Produces:** `SocialSecurityEstimator` module, integration with the simulation results (Social Security income added to plan income for total replacement ratio), and per-persona toggle.
+**Produces:** `SocialSecurityEstimator` module implementing the AIME/PIA/bend-point calculation, AWI-based earnings history reconstruction, claiming age adjustment, integration with simulation results (SS income added to plan income for total replacement ratio), and per-persona toggle.
 
 ---
 
@@ -832,12 +957,14 @@ and assumptions used. Accessible via a download button on the results dashboard.
 
 ```
 /speckit.specify Build the settings page with two sections: (1) global defaults for 
-new workspaces including return assumptions by asset class (expected return and standard 
-deviation for equity, international equity, fixed income, cash), inflation rate, wage 
-growth rate, and current-year IRS limits; (2) Monte Carlo configuration defaults 
-including number of simulations, retirement age, and planning age. Changes to global 
-defaults apply to newly created workspaces but do not retroactively change existing ones. 
-Include a "restore system defaults" button.
+new workspaces including inflation rate (default 2.5%), salary growth rate (default 
+inflation + 1.5%), current-year IRS limits (compensation limit, deferral limit, 
+additions limit, catch-up limits, SS taxable maximum), and the historical data 
+year range used for return sampling; (2) Monte Carlo configuration defaults including 
+number of simulations (default 250), retirement age (default 67), planning age 
+(default 93), and Social Security claiming age (default 67). Changes to global 
+defaults apply to newly created workspaces but do not retroactively change existing 
+ones. Include a "restore system defaults" button.
 ```
 
 **Produces:** Settings page with editable assumption tables and Monte Carlo config, persistence to a global config file, and restore defaults functionality.
