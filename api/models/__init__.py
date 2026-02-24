@@ -27,6 +27,7 @@ from api.models.vesting import (
     ImmediateVesting,
     VestingSchedule,
 )
+from api.models.ss_estimator import SSBenefitEstimate, SSEstimateRequest, SSEstimateResponse
 from api.models.defaults import default_personas
 from api.models.workspace import Workspace
 
@@ -50,6 +51,9 @@ __all__ = [
     "PersonaSimulationResult",
     "Scenario",
     "SimulationResponse",
+    "SSBenefitEstimate",
+    "SSEstimateRequest",
+    "SSEstimateResponse",
     "TargetDateAllocation",
     "VestingSchedule",
     "Workspace",

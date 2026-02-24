@@ -18,6 +18,7 @@ from api.models.simulation_result import (
 )
 from api.models.vesting import VestingSchedule
 from api.models.withdrawal_strategy import SystematicWithdrawal, WithdrawalStrategy
+from api.services.ss_estimator import SocialSecurityEstimator
 
 # --- Glide path constants (research.md R2) ---
 
@@ -76,6 +77,8 @@ class SimulationEngine:
         n = self._config.num_simulations
         a = self._assumptions
 
+        calendar_year = datetime.now(UTC).year
+
         # Edge case: persona already at or past retirement
         if persona.age >= retirement_age:
             pv = PercentileValues(
@@ -112,7 +115,7 @@ class SimulationEngine:
 
         # Year 0: record starting balance
         all_balances: list[np.ndarray] = [balances.copy()]
-        base_year = datetime.now(UTC).year
+        base_year = calendar_year
 
         for year_idx in range(1, num_years + 1):
             age = persona.age + year_idx
@@ -302,11 +305,34 @@ class SimulationEngine:
                 p90=round(float(aw_pcts[3]), 2),
             )
 
+        # --- Social Security benefit (deterministic, computed once) ---
+        ss_annual: float = 0.0
+        if persona.include_social_security:
+            ss_estimator = SocialSecurityEstimator(self._assumptions)
+            try:
+                ss_result = ss_estimator.estimate(
+                    persona, self._config.retirement_age, calendar_year
+                )
+                ss_annual = ss_result.annual_benefit_today
+            except ValueError:
+                ss_annual = 0.0
+
+        total_retirement_income: PercentileValues | None = None
+        if annual_withdrawal is not None:
+            total_retirement_income = PercentileValues(
+                p25=round(annual_withdrawal.p25 + ss_annual, 2),
+                p50=round(annual_withdrawal.p50 + ss_annual, 2),
+                p75=round(annual_withdrawal.p75 + ss_annual, 2),
+                p90=round(annual_withdrawal.p90 + ss_annual, 2),
+            )
+
         return PersonaSimulationResult(
             persona_id=persona.id,
             persona_name=persona.name,
             retirement_balance=retirement_balance,
             annual_withdrawal=annual_withdrawal,
+            ss_annual_benefit=ss_annual,
+            total_retirement_income=total_retirement_income,
             trajectory=trajectory,
         )
 

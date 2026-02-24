@@ -20,3 +20,4 @@ class Persona(BaseModel):
     current_balance: float = Field(ge=0)
     allocation: AssetAllocation
     include_social_security: bool = True
+    ss_claiming_age: int = Field(default=67, ge=62, le=70)
