@@ -10,6 +10,7 @@ class Assumptions(BaseModel):
 
     inflation_rate: float = 0.025
     wage_growth_rate: float = 0.03
+    wage_growth_std: float = Field(default=0.02, ge=0.0)
     equity: AssetClassReturn = AssetClassReturn(
         expected_return=0.075, standard_deviation=0.17
     )

@@ -15,6 +15,12 @@ from api.models.monte_carlo_config import MonteCarloConfig
 from api.models.persona import Persona
 from api.models.plan_design import PlanDesign
 from api.models.scenario import Scenario
+from api.models.simulation_result import (
+    PercentileValues,
+    PersonaSimulationResult,
+    SimulationResponse,
+    YearSnapshot,
+)
 from api.models.vesting import (
     CliffVesting,
     GradedVesting,
@@ -40,9 +46,13 @@ __all__ = [
     "MonteCarloConfig",
     "Persona",
     "PlanDesign",
+    "PercentileValues",
+    "PersonaSimulationResult",
     "Scenario",
+    "SimulationResponse",
     "TargetDateAllocation",
     "VestingSchedule",
     "Workspace",
+    "YearSnapshot",
     "default_personas",
 ]
