@@ -10,6 +10,7 @@ Auto-generated from all feature plans. Last updated: 2026-02-24
 - Compute-and-return — no result persistence. Only side effect: update `scenario.last_run_at` timestamp. (004-simulation-engine)
 - Python 3.12 (existing) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy >= 1.26 (all existing — no new dependencies) (005-withdrawal-strategy)
 - N/A — compute-and-return model; no new persistence (005-withdrawal-strategy)
+- N/A — compute-and-return model; SSA reference data (AWI, taxable maximums, bend points) embedded as Python constants (006-social-security-estimator)
 
 - Python 3.12 + Pydantic 2.10.4, FastAPI 0.115.6 (existing) (001-core-data-models)
 
@@ -29,9 +30,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.12: Follow standard conventions
 
 ## Recent Changes
+- 006-social-security-estimator: Added Python 3.12 (existing) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy >= 1.26 (all existing — no new dependencies)
 - 005-withdrawal-strategy: Added Python 3.12 (existing) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy >= 1.26 (all existing — no new dependencies)
 - 004-simulation-engine: Added Python 3.12 + FastAPI 0.115.6, Pydantic 2.10.4, uvicorn 0.34.0, NumPy >= 1.26 (existing)
-- 003-scenario-management: Added Python 3.12 + FastAPI 0.115.6, Pydantic 2.10.4, uvicorn 0.34.0
 
 
 <!-- MANUAL ADDITIONS START -->

@@ -32,6 +32,8 @@ class PersonaSimulationResult(BaseModel):
     persona_name: str
     retirement_balance: PercentileValues
     annual_withdrawal: PercentileValues | None = None
+    ss_annual_benefit: float = 0.0
+    total_retirement_income: PercentileValues | None = None
     trajectory: list[YearSnapshot]
 
 

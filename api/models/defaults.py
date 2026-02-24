@@ -16,6 +16,7 @@ def default_personas() -> list[Persona]:
             deferral_rate=0.03,
             current_balance=2_000,
             allocation=TargetDateAllocation(target_date_vintage=2065),
+            ss_claiming_age=67,
         ),
         Persona(
             name="Priya",
@@ -26,6 +27,7 @@ def default_personas() -> list[Persona]:
             deferral_rate=0.06,
             current_balance=35_000,
             allocation=TargetDateAllocation(target_date_vintage=2060),
+            ss_claiming_age=67,
         ),
         Persona(
             name="Marcus",
@@ -36,6 +38,7 @@ def default_personas() -> list[Persona]:
             deferral_rate=0.08,
             current_balance=150_000,
             allocation=TargetDateAllocation(target_date_vintage=2055),
+            ss_claiming_age=67,
         ),
         Persona(
             name="Sarah",
@@ -46,6 +49,7 @@ def default_personas() -> list[Persona]:
             deferral_rate=0.10,
             current_balance=320_000,
             allocation=TargetDateAllocation(target_date_vintage=2050),
+            ss_claiming_age=67,
         ),
         Persona(
             name="David",
@@ -56,6 +60,7 @@ def default_personas() -> list[Persona]:
             deferral_rate=0.12,
             current_balance=650_000,
             allocation=TargetDateAllocation(target_date_vintage=2045),
+            ss_claiming_age=67,
         ),
         Persona(
             name="Michelle",
@@ -66,6 +71,7 @@ def default_personas() -> list[Persona]:
             deferral_rate=0.15,
             current_balance=1_100_000,
             allocation=TargetDateAllocation(target_date_vintage=2040),
+            ss_claiming_age=67,
         ),
         Persona(
             name="Robert",
@@ -76,6 +82,7 @@ def default_personas() -> list[Persona]:
             deferral_rate=0.10,
             current_balance=480_000,
             allocation=TargetDateAllocation(target_date_vintage=2035),
+            ss_claiming_age=67,
         ),
         Persona(
             name="Linda",
@@ -86,5 +93,6 @@ def default_personas() -> list[Persona]:
             deferral_rate=0.05,
             current_balance=120_000,
             allocation=TargetDateAllocation(target_date_vintage=2035),
+            ss_claiming_age=67,
         ),
     ]
