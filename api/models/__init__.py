@@ -9,6 +9,7 @@ from api.models.asset_class_return import AssetClassReturn
 from api.models.assumptions import Assumptions
 from api.models.assumptions_override import AssetClassReturnOverride, AssumptionsOverride
 from api.models.core_contribution_tier import CoreContributionTier
+from api.models.irs_warning import IrsLimitWarning
 from api.models.match_tier import MatchTier
 from api.models.monte_carlo_config import MonteCarloConfig
 from api.models.persona import Persona
@@ -34,6 +35,7 @@ __all__ = [
     "CustomAllocation",
     "GradedVesting",
     "ImmediateVesting",
+    "IrsLimitWarning",
     "MatchTier",
     "MonteCarloConfig",
     "Persona",

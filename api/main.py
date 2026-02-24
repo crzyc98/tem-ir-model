@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 
 from api.routers.health import router as health_router
+from api.routers.scenarios import router as scenarios_router
 from api.routers.workspaces import router as workspaces_router
 from api.storage.workspace_store import WorkspaceStore
 
@@ -41,6 +42,10 @@ def create_app(base_path: Path | None = None) -> FastAPI:
     api_router = APIRouter(prefix="/api/v1")
     api_router.include_router(health_router)
     api_router.include_router(workspaces_router, prefix="/workspaces")
+    api_router.include_router(
+        scenarios_router,
+        prefix="/workspaces/{workspace_id}/scenarios",
+    )
     application.include_router(api_router)
 
     return application
