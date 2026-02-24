@@ -1,0 +1,8 @@
+[project]
+name = "tem-ir-model"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = ["--import-mode=importlib", "--strict-markers", "-ra"]
+testpaths = ["tests"]

@@ -1,0 +1,90 @@
+"""Default persona factory function (FR-010)."""
+
+from api.models.asset_allocation import TargetDateAllocation
+from api.models.persona import Persona
+
+
+def default_personas() -> list[Persona]:
+    """Return the 8 default employee personas per the PRD specification."""
+    return [
+        Persona(
+            name="Jordan",
+            label="Early Career Entry-Level",
+            age=25,
+            tenure_years=1,
+            salary=40_000,
+            deferral_rate=0.03,
+            current_balance=2_000,
+            allocation=TargetDateAllocation(target_date_vintage=2065),
+        ),
+        Persona(
+            name="Priya",
+            label="Early Career Professional",
+            age=30,
+            tenure_years=3,
+            salary=65_000,
+            deferral_rate=0.06,
+            current_balance=35_000,
+            allocation=TargetDateAllocation(target_date_vintage=2060),
+        ),
+        Persona(
+            name="Marcus",
+            label="Mid-Career Individual Contributor",
+            age=38,
+            tenure_years=8,
+            salary=90_000,
+            deferral_rate=0.08,
+            current_balance=150_000,
+            allocation=TargetDateAllocation(target_date_vintage=2055),
+        ),
+        Persona(
+            name="Sarah",
+            label="Mid-Career Manager",
+            age=42,
+            tenure_years=12,
+            salary=120_000,
+            deferral_rate=0.10,
+            current_balance=320_000,
+            allocation=TargetDateAllocation(target_date_vintage=2050),
+        ),
+        Persona(
+            name="David",
+            label="Senior Manager",
+            age=48,
+            tenure_years=18,
+            salary=160_000,
+            deferral_rate=0.12,
+            current_balance=650_000,
+            allocation=TargetDateAllocation(target_date_vintage=2045),
+        ),
+        Persona(
+            name="Michelle",
+            label="Director / Executive",
+            age=52,
+            tenure_years=22,
+            salary=210_000,
+            deferral_rate=0.15,
+            current_balance=1_100_000,
+            allocation=TargetDateAllocation(target_date_vintage=2040),
+        ),
+        Persona(
+            name="Robert",
+            label="Late Career / Near Retirement",
+            age=58,
+            tenure_years=28,
+            salary=140_000,
+            deferral_rate=0.10,
+            current_balance=480_000,
+            allocation=TargetDateAllocation(target_date_vintage=2035),
+        ),
+        Persona(
+            name="Linda",
+            label="Lower-Paid Long-Tenure",
+            age=55,
+            tenure_years=30,
+            salary=52_000,
+            deferral_rate=0.05,
+            current_balance=120_000,
+            allocation=TargetDateAllocation(target_date_vintage=2035),
+        ),
+    ]
