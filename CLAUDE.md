@@ -11,6 +11,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-24
 - Python 3.12 (existing) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy >= 1.26 (all existing — no new dependencies) (005-withdrawal-strategy)
 - N/A — compute-and-return model; no new persistence (005-withdrawal-strategy)
 - N/A — compute-and-return model; SSA reference data (AWI, taxable maximums, bend points) embedded as Python constants (006-social-security-estimator)
+- TypeScript 5.8.2 / React 19 / Vite 6.2 + react-router-dom 7.1, lucide-react 0.469, tailwindcss 3.4.17, @tailwindcss/forms 0.5.9, recharts 2.15 (existing, not needed for shell) (007-frontend-shell)
+- N/A (frontend only; consumes backend REST API) (007-frontend-shell)
 
 - Python 3.12 + Pydantic 2.10.4, FastAPI 0.115.6 (existing) (001-core-data-models)
 
@@ -30,9 +32,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.12: Follow standard conventions
 
 ## Recent Changes
+- 007-frontend-shell: Added TypeScript 5.8.2 / React 19 / Vite 6.2 + react-router-dom 7.1, lucide-react 0.469, tailwindcss 3.4.17, @tailwindcss/forms 0.5.9, recharts 2.15 (existing, not needed for shell)
 - 006-social-security-estimator: Added Python 3.12 (existing) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy >= 1.26 (all existing — no new dependencies)
 - 005-withdrawal-strategy: Added Python 3.12 (existing) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy >= 1.26 (all existing — no new dependencies)
-- 004-simulation-engine: Added Python 3.12 + FastAPI 0.115.6, Pydantic 2.10.4, uvicorn 0.34.0, NumPy >= 1.26 (existing)
 
 
 <!-- MANUAL ADDITIONS START -->

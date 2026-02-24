@@ -833,7 +833,7 @@ cards with rounded-xl shadow-sm border border-gray-100, fixed sidebar (w-64) wit
 items and collapsible dropdowns, top header bar, primary brand color #00853F, Lucide 
 React icons. Include a workspace selector dropdown in the sidebar header, navigation 
 for Dashboard, Persona Modeling, Plan Comparison, Scenarios, and Settings pages. All 
-pages are placeholder stubs for now. Clean enterprise SaaS aesthetic, no flashy animations.  please look at /examples/ for the details from our sister application, Fidelity PlanAlign for your inspiration./c
+pages are placeholder stubs for now. Clean enterprise SaaS aesthetic, no flashy animations.  please look at /examples/ for the details from our sister application, Fidelity PlanAlign for your inspiration./
 ```
 
 **Produces:** Fully styled app shell with routing, workspace selector that hits the workspace list API, sidebar navigation, and placeholder page components.
