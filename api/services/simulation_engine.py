@@ -17,6 +17,7 @@ from api.models.simulation_result import (
     YearSnapshot,
 )
 from api.models.vesting import VestingSchedule
+from api.models.withdrawal_strategy import SystematicWithdrawal, WithdrawalStrategy
 
 # --- Glide path constants (research.md R2) ---
 
@@ -39,10 +40,12 @@ class SimulationEngine:
         assumptions: Assumptions,
         plan_design: PlanDesign,
         config: MonteCarloConfig,
+        withdrawal_strategy: WithdrawalStrategy | None = None,
     ) -> None:
         self._assumptions = assumptions
         self._plan = plan_design
         self._config = config
+        self._strategy: WithdrawalStrategy = withdrawal_strategy or SystematicWithdrawal()
 
     # --- Public API (T012) ---
 
@@ -186,11 +189,90 @@ class SimulationEngine:
 
             all_balances.append(balances.copy())
 
+        # --- Distribution phase (retirement_age+1 → planning_age) ---
+        planning_age = self._config.planning_age
+        distribution_years = planning_age - retirement_age
+        all_withdrawals: list[np.ndarray] = []
+        annual_withdrawal: PercentileValues | None = None
+
+        if distribution_years > 0:
+            retirement_balances = balances.copy()
+
+            # Compute blended expected nominal return at retirement allocation
+            current_year_at_retirement = base_year + num_years
+            stock_pct, bond_pct, cash_pct = self._get_allocation(
+                persona, current_year_at_retirement
+            )
+            r_nominal = (
+                stock_pct * a.equity.expected_return
+                + bond_pct * a.fixed_income.expected_return
+                + cash_pct * a.cash.expected_return
+            )
+            # Fisher formula for real return
+            r_real = (1.0 + r_nominal) / (1.0 + a.inflation_rate) - 1.0
+
+            dist_params = {
+                "total_years": distribution_years,
+                "real_return_rate": r_real,
+                "inflation_rate": a.inflation_rate,
+            }
+
+            for year_idx in range(1, distribution_years + 1):
+                year_in_retirement = year_idx
+
+                # Withdraw
+                w_nominal = self._strategy.calculate_withdrawal(
+                    balances, year_in_retirement, retirement_balances, dist_params
+                )
+                w_nominal = np.minimum(w_nominal, np.maximum(balances, 0.0))
+                balances = balances - w_nominal
+                balances = np.maximum(balances, 0.0)
+
+                # Investment returns (reuse existing pattern)
+                current_year = base_year + num_years + year_idx
+                stock_pct, bond_pct, cash_pct = self._get_allocation(
+                    persona, current_year
+                )
+                eq_ret = rng.normal(
+                    a.equity.expected_return, a.equity.standard_deviation, n
+                )
+                fi_ret = rng.normal(
+                    a.fixed_income.expected_return,
+                    a.fixed_income.standard_deviation,
+                    n,
+                )
+                ca_ret = rng.normal(
+                    a.cash.expected_return, a.cash.standard_deviation, n
+                )
+                blended_return = (
+                    stock_pct * eq_ret + bond_pct * fi_ret + cash_pct * ca_ret
+                )
+                balances = balances * (1.0 + blended_return)
+                balances = np.maximum(balances, 0.0)
+
+                all_balances.append(balances.copy())
+                # Real withdrawal = nominal / (1 + inflation)^year_in_retirement
+                w_real = w_nominal / ((1.0 + a.inflation_rate) ** year_in_retirement)
+                all_withdrawals.append(w_real.copy())
+
         # Compute percentiles across trials for each year
+        num_accumulation_snapshots = num_years + 1  # year 0 through retirement
         trajectory: list[YearSnapshot] = []
-        for year_idx, year_balances in enumerate(all_balances):
-            age = persona.age + year_idx
+        for snap_idx, year_balances in enumerate(all_balances):
+            age = persona.age + snap_idx
             pcts = np.percentile(year_balances, PERCENTILES)
+
+            withdrawal_pv: PercentileValues | None = None
+            if snap_idx >= num_accumulation_snapshots:
+                dist_idx = snap_idx - num_accumulation_snapshots
+                w_pcts = np.percentile(all_withdrawals[dist_idx], PERCENTILES)
+                withdrawal_pv = PercentileValues(
+                    p25=round(float(w_pcts[0]), 2),
+                    p50=round(float(w_pcts[1]), 2),
+                    p75=round(float(w_pcts[2]), 2),
+                    p90=round(float(w_pcts[3]), 2),
+                )
+
             trajectory.append(
                 YearSnapshot(
                     age=age,
@@ -198,10 +280,11 @@ class SimulationEngine:
                     p50=round(float(pcts[1]), 2),
                     p75=round(float(pcts[2]), 2),
                     p90=round(float(pcts[3]), 2),
+                    withdrawal=withdrawal_pv,
                 )
             )
 
-        retirement_snap = trajectory[-1]
+        retirement_snap = trajectory[num_accumulation_snapshots - 1]
         retirement_balance = PercentileValues(
             p25=retirement_snap.p25,
             p50=retirement_snap.p50,
@@ -209,10 +292,21 @@ class SimulationEngine:
             p90=retirement_snap.p90,
         )
 
+        # Headline annual withdrawal: percentiles of real withdrawal from year 1
+        if all_withdrawals:
+            aw_pcts = np.percentile(all_withdrawals[0], PERCENTILES)
+            annual_withdrawal = PercentileValues(
+                p25=round(float(aw_pcts[0]), 2),
+                p50=round(float(aw_pcts[1]), 2),
+                p75=round(float(aw_pcts[2]), 2),
+                p90=round(float(aw_pcts[3]), 2),
+            )
+
         return PersonaSimulationResult(
             persona_id=persona.id,
             persona_name=persona.name,
             retirement_balance=retirement_balance,
+            annual_withdrawal=annual_withdrawal,
             trajectory=trajectory,
         )
 

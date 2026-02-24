@@ -22,6 +22,7 @@ class YearSnapshot(BaseModel):
     p50: float
     p75: float
     p90: float
+    withdrawal: PercentileValues | None = None
 
 
 class PersonaSimulationResult(BaseModel):
@@ -30,6 +31,7 @@ class PersonaSimulationResult(BaseModel):
     persona_id: UUID
     persona_name: str
     retirement_balance: PercentileValues
+    annual_withdrawal: PercentileValues | None = None
     trajectory: list[YearSnapshot]
 
 
@@ -40,4 +42,5 @@ class SimulationResponse(BaseModel):
     num_simulations: int
     seed: int | None
     retirement_age: int
+    planning_age: int
     personas: list[PersonaSimulationResult]
