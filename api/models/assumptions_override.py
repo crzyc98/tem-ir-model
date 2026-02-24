@@ -18,6 +18,7 @@ class AssumptionsOverride(BaseModel):
 
     inflation_rate: float | None = None
     wage_growth_rate: float | None = None
+    wage_growth_std: float | None = Field(default=None, ge=0.0)
     equity: AssetClassReturnOverride | None = None
     intl_equity: AssetClassReturnOverride | None = None
     fixed_income: AssetClassReturnOverride | None = None

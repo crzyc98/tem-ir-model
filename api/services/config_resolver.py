@@ -51,6 +51,11 @@ def resolve_config(
             if overrides.wage_growth_rate is not None
             else base.wage_growth_rate
         ),
+        wage_growth_std=(
+            overrides.wage_growth_std
+            if overrides.wage_growth_std is not None
+            else base.wage_growth_std
+        ),
         equity=_resolve_asset_class(base.equity, overrides.equity),
         intl_equity=_resolve_asset_class(base.intl_equity, overrides.intl_equity),
         fixed_income=_resolve_asset_class(base.fixed_income, overrides.fixed_income),
