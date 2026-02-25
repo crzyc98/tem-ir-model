@@ -10,7 +10,7 @@ from api.models.match_tier import MatchTier
 from api.models.monte_carlo_config import MonteCarloConfig
 from api.models.plan_design import PlanDesign
 from api.models.vesting import ImmediateVesting
-from api.models.withdrawal_strategy import SystematicWithdrawal
+from api.models.withdrawal_strategy import ExpenseGapWithdrawal
 from api.services.simulation_engine import SimulationEngine
 
 
@@ -87,13 +87,13 @@ class TestAccumulationIdenticalDistributionDiffers:
             num_simulations=100, seed=42, retirement_age=67, planning_age=93
         )
 
-        engine_sys = SimulationEngine(
+        engine_gap = SimulationEngine(
             assumptions=assumptions,
             plan_design=plan,
             config=config,
-            withdrawal_strategy=SystematicWithdrawal(),
+            withdrawal_strategy=ExpenseGapWithdrawal(),
         )
-        results_sys = engine_sys.run([persona])
+        results_sys = engine_gap.run([persona])
 
         engine_fixed = SimulationEngine(
             assumptions=assumptions,

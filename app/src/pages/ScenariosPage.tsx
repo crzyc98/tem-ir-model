@@ -167,6 +167,7 @@ export default function ScenariosPage() {
                 onClick={() => navigate(`/scenarios/${scenario.id}`)}
                 onDuplicate={() => handleDuplicate(scenario.id)}
                 onDelete={() => setDeletingScenario(scenario)}
+                onViewResults={() => navigate(`/scenarios/${scenario.id}/results`)}
                 isDuplicating={duplicatingId === scenario.id}
               />
             )

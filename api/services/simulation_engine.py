@@ -17,20 +17,58 @@ from api.models.simulation_result import (
     YearSnapshot,
 )
 from api.models.vesting import VestingSchedule
-from api.models.withdrawal_strategy import SystematicWithdrawal, WithdrawalStrategy
+from api.models.withdrawal_strategy import ExpenseGapWithdrawal, WithdrawalStrategy
 from api.services.ss_estimator import SocialSecurityEstimator
 
-# --- Glide path constants (research.md R2) ---
-
-GLIDE_EQUITY_START = 0.90
-GLIDE_EQUITY_END = 0.30
-GLIDE_BOND_START = 0.08
-GLIDE_BOND_END = 0.50
-GLIDE_CASH_START = 0.02
-GLIDE_CASH_END = 0.20
-GLIDE_YEARS = 40
+# Fidelity Freedom Fund glide path (effective Q1 2027)
+# Columns: (years_to_target, us_equity, intl_equity, bonds, short_term)
+# Positive = years before target date; negative = years after target date.
+# Clamp: >= 30 years out → row 0; <= -19 years past → last row.
+GLIDE_PATH: list[tuple[int, float, float, float, float]] = [
+    ( 30,  0.570, 0.380, 0.050, 0.000),
+    ( 24,  0.554, 0.370, 0.076, 0.000),
+    ( 19,  0.539, 0.359, 0.102, 0.000),
+    ( 14,  0.486, 0.324, 0.190, 0.000),
+    (  9,  0.399, 0.266, 0.315, 0.020),
+    (  4,  0.346, 0.231, 0.353, 0.070),
+    (  0,  0.307, 0.205, 0.368, 0.120),
+    ( -6,  0.258, 0.172, 0.427, 0.143),
+    (-11,  0.216, 0.144, 0.446, 0.194),
+    (-16,  0.183, 0.122, 0.457, 0.238),
+    (-19,  0.168, 0.112, 0.430, 0.290),
+]
 
 PERCENTILES = (10, 25, 50, 75, 90)
+
+# Income-tier replacement ratio lookup table (combined DC + SS target)
+_IR_TIERS: list[tuple[float, float]] = [
+    (50_000, 0.80),
+    (80_000, 0.77),
+    (120_000, 0.72),
+    (250_000, 0.62),
+    (float("inf"), 0.55),
+]
+
+
+def _lookup_replacement_ratio(salary: float, override: float | None) -> float:
+    if override is not None:
+        return override
+    for threshold, ratio in _IR_TIERS:
+        if salary < threshold:
+            return ratio
+    return 0.55
+
+
+def _pos_assessment(pos: float) -> str:
+    if pos >= 0.90:
+        return "On Track"
+    if pos >= 0.75:
+        return "High"
+    if pos >= 0.50:
+        return "Needs Refinement"
+    if pos >= 0.25:
+        return "Most Likely Requires Adjustment"
+    return "Needs Major Reassessment"
 
 
 class SimulationEngine:
@@ -46,7 +84,7 @@ class SimulationEngine:
         self._assumptions = assumptions
         self._plan = plan_design
         self._config = config
-        self._strategy: WithdrawalStrategy = withdrawal_strategy or SystematicWithdrawal()
+        self._strategy: WithdrawalStrategy = withdrawal_strategy or ExpenseGapWithdrawal()
 
     # --- Public API (T012) ---
 
@@ -111,9 +149,13 @@ class SimulationEngine:
         salaries = np.full(n, persona.salary, dtype=np.float64)
 
         # Auto-enrollment (research.md R8)
+        # When auto_enroll_overrides_personal_rate=True (default), the plan rate
+        # applies to all personas. When False, only unenrolled (rate==0) personas
+        # are affected. Auto-escalation is only active when auto-enroll is on.
         initial_rate = persona.deferral_rate
-        if initial_rate == 0.0 and self._plan.auto_enroll_enabled:
-            initial_rate = self._plan.auto_enroll_rate
+        if self._plan.auto_enroll_enabled:
+            if self._plan.auto_enroll_overrides_personal_rate or initial_rate == 0.0:
+                initial_rate = self._plan.auto_enroll_rate
         deferral_rates = np.full(n, initial_rate, dtype=np.float64)
 
         # Contribution accumulators (T006)
@@ -129,15 +171,17 @@ class SimulationEngine:
             age = persona.age + year_idx
             tenure = persona.tenure_years + year_idx
 
-            # 1. Wage growth with noise
+            # 1. Wage growth with noise — convert to real via Fisher formula
             growth = rng.normal(a.wage_growth_rate, a.wage_growth_std, n)
-            salaries = salaries * (1.0 + growth)
+            real_growth = (1.0 + growth) / (1.0 + a.inflation_rate) - 1.0
+            salaries = salaries * (1.0 + real_growth)
 
             # 2. Cap compensation
             capped_comp = np.minimum(salaries, a.comp_limit)
 
             # 3. Auto-escalation (research.md R8 — from year 1 onwards)
-            if self._plan.auto_escalation_enabled:
+            # Only applies when auto-enroll is active; no escalation in persona-rate-only mode.
+            if self._plan.auto_enroll_enabled and self._plan.auto_escalation_enabled:
                 deferral_rates = np.minimum(
                     deferral_rates + self._plan.auto_escalation_rate,
                     self._plan.auto_escalation_cap,
@@ -183,16 +227,16 @@ class SimulationEngine:
 
             # 10. Investment returns
             current_year = base_year + year_idx
-            stock_pct, bond_pct, cash_pct = self._get_allocation(
+            us_eq, intl_eq, bonds, short_term = self._get_allocation(
                 persona, current_year
             )
 
-            eq_ret = rng.normal(a.equity.expected_return, a.equity.standard_deviation, n)
-            fi_ret = rng.normal(
-                a.fixed_income.expected_return, a.fixed_income.standard_deviation, n
-            )
-            ca_ret = rng.normal(a.cash.expected_return, a.cash.standard_deviation, n)
-            blended_return = stock_pct * eq_ret + bond_pct * fi_ret + cash_pct * ca_ret
+            us_ret  = rng.normal(a.equity.expected_return,      a.equity.standard_deviation,      n)
+            int_ret = rng.normal(a.intl_equity.expected_return, a.intl_equity.standard_deviation, n)
+            fi_ret  = rng.normal(a.fixed_income.expected_return, a.fixed_income.standard_deviation, n)
+            ca_ret  = rng.normal(a.cash.expected_return,        a.cash.standard_deviation,        n)
+            blended_nominal = us_eq * us_ret + intl_eq * int_ret + bonds * fi_ret + short_term * ca_ret
+            blended_return = (1.0 + blended_nominal) / (1.0 + a.inflation_rate) - 1.0
 
             # 12. Balance update (beginning-of-year contribution assumption)
             contributions = deferrals + vested_match + vested_core
@@ -205,6 +249,28 @@ class SimulationEngine:
 
             all_balances.append(balances.copy())
 
+        # --- Social Security (computed before distribution to inform dist_params) ---
+        ss_annual: float = 0.0
+        if persona.include_social_security:
+            ss_estimator = SocialSecurityEstimator(self._assumptions)
+            try:
+                ss_result = ss_estimator.estimate(
+                    persona, retirement_age, calendar_year
+                )
+                ss_annual = ss_result.annual_benefit_today
+            except ValueError:
+                ss_annual = 0.0
+
+        # --- Expense target ---
+        years_to_retirement = retirement_age - persona.age
+        projected_salary = persona.salary * (
+            (1.0 + a.salary_real_growth_rate) ** years_to_retirement
+        )
+        target_ratio = _lookup_replacement_ratio(
+            projected_salary, a.target_replacement_ratio_override
+        )
+        expense_target_real = projected_salary * target_ratio
+
         # --- Distribution phase (retirement_age+1 → planning_age) ---
         planning_age = self._config.planning_age
         distribution_years = planning_age - retirement_age
@@ -216,13 +282,14 @@ class SimulationEngine:
 
             # Compute blended expected nominal return at retirement allocation
             current_year_at_retirement = base_year + num_years
-            stock_pct, bond_pct, cash_pct = self._get_allocation(
+            us_eq, intl_eq, bonds, short_term = self._get_allocation(
                 persona, current_year_at_retirement
             )
             r_nominal = (
-                stock_pct * a.equity.expected_return
-                + bond_pct * a.fixed_income.expected_return
-                + cash_pct * a.cash.expected_return
+                us_eq        * a.equity.expected_return
+                + intl_eq    * a.intl_equity.expected_return
+                + bonds      * a.fixed_income.expected_return
+                + short_term * a.cash.expected_return
             )
             # Fisher formula for real return
             r_real = (1.0 + r_nominal) / (1.0 + a.inflation_rate) - 1.0
@@ -231,44 +298,44 @@ class SimulationEngine:
                 "total_years": distribution_years,
                 "real_return_rate": r_real,
                 "inflation_rate": a.inflation_rate,
+                "expense_target_real": expense_target_real,
+                "ss_annual_real": ss_annual,
             }
+
+            shortfall_ages = np.full(n, np.nan)
 
             for year_idx in range(1, distribution_years + 1):
                 year_in_retirement = year_idx
 
-                # Withdraw
-                w_nominal = self._strategy.calculate_withdrawal(
+                # Withdraw — strategy returns real (today's dollars) withdrawal
+                w_real = self._strategy.calculate_withdrawal(
                     balances, year_in_retirement, retirement_balances, dist_params
                 )
-                w_nominal = np.minimum(w_nominal, np.maximum(balances, 0.0))
-                balances = balances - w_nominal
+                w_real = np.minimum(w_real, np.maximum(balances, 0.0))
+                balances = balances - w_real
                 balances = np.maximum(balances, 0.0)
 
-                # Investment returns (reuse existing pattern)
+                # Investment returns — convert to real via Fisher (balances are real)
                 current_year = base_year + num_years + year_idx
-                stock_pct, bond_pct, cash_pct = self._get_allocation(
+                us_eq, intl_eq, bonds, short_term = self._get_allocation(
                     persona, current_year
                 )
-                eq_ret = rng.normal(
-                    a.equity.expected_return, a.equity.standard_deviation, n
-                )
-                fi_ret = rng.normal(
-                    a.fixed_income.expected_return,
-                    a.fixed_income.standard_deviation,
-                    n,
-                )
-                ca_ret = rng.normal(
-                    a.cash.expected_return, a.cash.standard_deviation, n
-                )
-                blended_return = (
-                    stock_pct * eq_ret + bond_pct * fi_ret + cash_pct * ca_ret
-                )
+                us_ret  = rng.normal(a.equity.expected_return,      a.equity.standard_deviation,      n)
+                int_ret = rng.normal(a.intl_equity.expected_return, a.intl_equity.standard_deviation, n)
+                fi_ret  = rng.normal(a.fixed_income.expected_return, a.fixed_income.standard_deviation, n)
+                ca_ret  = rng.normal(a.cash.expected_return,        a.cash.standard_deviation,        n)
+                blended_nominal = us_eq * us_ret + intl_eq * int_ret + bonds * fi_ret + short_term * ca_ret
+                blended_return = (1.0 + blended_nominal) / (1.0 + a.inflation_rate) - 1.0
                 balances = balances * (1.0 + blended_return)
                 balances = np.maximum(balances, 0.0)
 
+                # Track first year each trial balance hits 0
+                newly_depleted = (balances <= 0.0) & np.isnan(shortfall_ages)
+                shortfall_ages = np.where(
+                    newly_depleted, float(retirement_age + year_idx), shortfall_ages
+                )
+
                 all_balances.append(balances.copy())
-                # Real withdrawal = nominal / (1 + inflation)^year_in_retirement
-                w_real = w_nominal / ((1.0 + a.inflation_rate) ** year_in_retirement)
                 all_withdrawals.append(w_real.copy())
 
         # Compute percentiles across trials for each year
@@ -322,18 +389,6 @@ class SimulationEngine:
                 p90=round(float(aw_pcts[4]), 2),
             )
 
-        # --- Social Security benefit (deterministic, computed once) ---
-        ss_annual: float = 0.0
-        if persona.include_social_security:
-            ss_estimator = SocialSecurityEstimator(self._assumptions)
-            try:
-                ss_result = ss_estimator.estimate(
-                    persona, self._config.retirement_age, calendar_year
-                )
-                ss_annual = ss_result.annual_benefit_today
-            except ValueError:
-                ss_annual = 0.0
-
         total_retirement_income: PercentileValues | None = None
         if annual_withdrawal is not None:
             total_retirement_income = PercentileValues(
@@ -348,17 +403,15 @@ class SimulationEngine:
         total_employee_contributions = float(np.median(cum_deferrals))
         total_employer_contributions = float(np.median(cum_match + cum_core))
 
-        # --- Probability of success (T007) ---
+        # --- Probability of success + shortfall age ---
         probability_of_success = 1.0
+        shortfall_age_p50: int | None = None
         if distribution_years > 0:
             final_balances = all_balances[-1]
             probability_of_success = float(np.sum(final_balances > 0) / n)
-
-        # --- Projected salary at retirement & income replacement ratio (T007) ---
-        years_to_retirement = retirement_age - persona.age
-        projected_salary = persona.salary * (
-            (1.0 + a.wage_growth_rate) ** years_to_retirement
-        )
+            failed = shortfall_ages[~np.isnan(shortfall_ages)]
+            if len(failed) > 0:
+                shortfall_age_p50 = int(np.median(failed))
 
         income_replacement_ratio: PercentileValues | None = None
         if total_retirement_income is not None and projected_salary > 0:
@@ -383,6 +436,9 @@ class SimulationEngine:
             probability_of_success=round(probability_of_success, 4),
             income_replacement_ratio=income_replacement_ratio,
             projected_salary_at_retirement=round(projected_salary, 2),
+            shortfall_age_p50=shortfall_age_p50,
+            pos_assessment=_pos_assessment(round(probability_of_success, 4)),
+            target_replacement_ratio=round(target_ratio, 4),
         )
 
     # --- Helper: IRS deferral limit (T006, FR-005) ---
@@ -421,20 +477,35 @@ class SimulationEngine:
     @staticmethod
     def _get_allocation(
         persona: Persona, current_year: int
-    ) -> tuple[float, float, float]:
-        """Return (stock_pct, bond_pct, cash_pct) for the persona's allocation."""
+    ) -> tuple[float, float, float, float]:
+        """Return (us_equity, intl_equity, bonds, short_term) for the persona's allocation."""
         alloc = persona.allocation
         if isinstance(alloc, CustomAllocation):
-            return alloc.stock_pct, alloc.bond_pct, alloc.cash_pct
+            # Map stock_pct → US equity only; preserve existing return behavior
+            return alloc.stock_pct, 0.0, alloc.bond_pct, alloc.cash_pct
 
-        # TargetDateAllocation — apply glide path
         assert isinstance(alloc, TargetDateAllocation)
-        years_to_target = alloc.target_date_vintage - current_year
-        t = max(0.0, min(1.0, (GLIDE_YEARS - years_to_target) / GLIDE_YEARS))
-        equity = GLIDE_EQUITY_START - t * (GLIDE_EQUITY_START - GLIDE_EQUITY_END)
-        bonds = GLIDE_BOND_START + t * (GLIDE_BOND_END - GLIDE_BOND_START)
-        cash = GLIDE_CASH_START + t * (GLIDE_CASH_END - GLIDE_CASH_START)
-        return equity, bonds, cash
+        ytt = alloc.target_date_vintage - current_year
+
+        # Clamp to endpoints
+        if ytt >= GLIDE_PATH[0][0]:
+            return GLIDE_PATH[0][1], GLIDE_PATH[0][2], GLIDE_PATH[0][3], GLIDE_PATH[0][4]
+        if ytt <= GLIDE_PATH[-1][0]:
+            return GLIDE_PATH[-1][1], GLIDE_PATH[-1][2], GLIDE_PATH[-1][3], GLIDE_PATH[-1][4]
+
+        # Find bracketing rows and interpolate
+        for i in range(len(GLIDE_PATH) - 1):
+            hi = GLIDE_PATH[i]
+            lo = GLIDE_PATH[i + 1]
+            if lo[0] <= ytt <= hi[0]:
+                span = hi[0] - lo[0]
+                w = (ytt - lo[0]) / span  # weight toward hi row
+                return (
+                    hi[1] * w + lo[1] * (1 - w),
+                    hi[2] * w + lo[2] * (1 - w),
+                    hi[3] * w + lo[3] * (1 - w),
+                    hi[4] * w + lo[4] * (1 - w),
+                )
 
     # --- Helper: employer match (T009, FR-006) ---
 

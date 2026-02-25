@@ -12,14 +12,13 @@ import {
 } from 'recharts'
 import type { PersonaSimulationResult, ConfidenceLevel } from '../types/simulation'
 import { formatCompactCurrency } from '../utils/formatters'
+import { SCENARIO_COLORS } from '../utils/chart-colors'
 
 interface TrajectoryChartProps {
   personas: PersonaSimulationResult[]
   confidenceLevel: ConfidenceLevel
   retirementAge: number
 }
-
-const COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
 
 interface ConfidenceConfig {
   line: 'p10' | 'p25' | 'p50'
@@ -91,7 +90,8 @@ export default function TrajectoryChart({ personas, confidenceLevel, retirementA
         <YAxis
           tickFormatter={formatCompactCurrency}
           tick={{ fontSize: 12 }}
-          width={70}
+          width={90}
+          label={{ value: "Today's $", angle: -90, position: 'insideLeft', offset: 15, fontSize: 11, fill: '#6b7280' }}
         />
         <Tooltip content={<CustomTooltip />} />
         <Legend
@@ -113,7 +113,7 @@ export default function TrajectoryChart({ personas, confidenceLevel, retirementA
         />
         {/* Render bands: upper area with color fill, then lower area with white fill to cut out */}
         {hasBands && personas.map((_, idx) => {
-          const color = COLORS[idx % COLORS.length]
+          const color = SCENARIO_COLORS[idx % SCENARIO_COLORS.length]
           return (
             <Area
               key={`upper_${idx}`}
@@ -139,7 +139,7 @@ export default function TrajectoryChart({ personas, confidenceLevel, retirementA
         ))}
         {/* Render lines on top */}
         {personas.map((_, idx) => {
-          const color = COLORS[idx % COLORS.length]
+          const color = SCENARIO_COLORS[idx % SCENARIO_COLORS.length]
           return (
             <Line
               key={`line_${idx}`}

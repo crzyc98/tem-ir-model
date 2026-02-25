@@ -16,7 +16,7 @@ class PercentileValues(BaseModel):
 
 
 class YearSnapshot(BaseModel):
-    """A single year's data point in a trajectory."""
+    """A single year's data point in a trajectory. All monetary values in today's dollars (real)."""
 
     age: int
     p10: float
@@ -28,7 +28,7 @@ class YearSnapshot(BaseModel):
 
 
 class PersonaSimulationResult(BaseModel):
-    """Simulation results for a single persona."""
+    """Simulation results for a single persona. All monetary values in today's dollars (real)."""
 
     persona_id: UUID
     persona_name: str
@@ -42,6 +42,9 @@ class PersonaSimulationResult(BaseModel):
     probability_of_success: float = 1.0
     income_replacement_ratio: PercentileValues | None = None
     projected_salary_at_retirement: float = 0.0
+    shortfall_age_p50: int | None = None
+    pos_assessment: str = "On Track"
+    target_replacement_ratio: float | None = None
 
 
 class SimulationResponse(BaseModel):

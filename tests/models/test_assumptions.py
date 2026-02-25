@@ -15,6 +15,10 @@ class TestAssumptionsDefaults:
         a = Assumptions()
         assert a.wage_growth_rate == 0.03
 
+    def test_salary_real_growth_rate_default(self):
+        a = Assumptions()
+        assert a.salary_real_growth_rate == 0.015
+
     def test_equity_expected_return_default(self):
         a = Assumptions()
         assert a.equity.expected_return == 0.075
@@ -74,3 +78,29 @@ class TestAssumptionsEdgeCases:
         a = Assumptions(equity=negative_equity)
         assert a.equity.expected_return == -0.05
         assert a.equity.standard_deviation == 0.20
+
+
+class TestTargetReplacementRatioOverride:
+    def test_defaults_to_none(self):
+        a = Assumptions()
+        assert a.target_replacement_ratio_override is None
+
+    def test_accepts_zero(self):
+        a = Assumptions(target_replacement_ratio_override=0.0)
+        assert a.target_replacement_ratio_override == 0.0
+
+    def test_accepts_one(self):
+        a = Assumptions(target_replacement_ratio_override=1.0)
+        assert a.target_replacement_ratio_override == 1.0
+
+    def test_accepts_midpoint(self):
+        a = Assumptions(target_replacement_ratio_override=0.72)
+        assert a.target_replacement_ratio_override == pytest.approx(0.72)
+
+    def test_rejects_above_one(self):
+        with pytest.raises(Exception):
+            Assumptions(target_replacement_ratio_override=1.01)
+
+    def test_rejects_below_zero(self):
+        with pytest.raises(Exception):
+            Assumptions(target_replacement_ratio_override=-0.01)

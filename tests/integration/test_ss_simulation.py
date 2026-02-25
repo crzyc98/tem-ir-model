@@ -118,9 +118,9 @@ class TestSSToggleOff:
         assert result.total_retirement_income.p90 == result.annual_withdrawal.p90
 
 
-class TestWithdrawalUnchanged:
-    def test_annual_withdrawal_identical_with_ss_on_and_off(self):
-        """FR-016: annual_withdrawal is identical regardless of SS toggle."""
+class TestWithdrawalReducedBySS:
+    def test_annual_withdrawal_lower_with_ss_on(self):
+        """Expense-gap semantics: SS fills part of the income gap, reducing portfolio withdrawal."""
         plan = _simple_plan()
         assumptions = Assumptions()
         config = MonteCarloConfig(
@@ -146,10 +146,11 @@ class TestWithdrawalUnchanged:
         aw_off = results_off[0].annual_withdrawal
         assert aw_on is not None
         assert aw_off is not None
-        assert aw_on.p25 == aw_off.p25
-        assert aw_on.p50 == aw_off.p50
-        assert aw_on.p75 == aw_off.p75
-        assert aw_on.p90 == aw_off.p90
+        # With SS on, portfolio withdrawal is lower (SS covers part of the expense gap)
+        assert aw_on.p50 < aw_off.p50
+        # The difference equals the SS benefit
+        ss_benefit = results_on[0].ss_annual_benefit
+        assert abs((aw_off.p50 - aw_on.p50) - ss_benefit) < 0.01
 
 
 class TestMixedPersonas:

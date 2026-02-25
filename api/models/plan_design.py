@@ -24,6 +24,9 @@ class PlanDesign(BaseModel):
     core_eligibility_months: int = Field(default=0, ge=0, le=12)
     auto_enroll_enabled: bool = True
     auto_enroll_rate: float = Field(default=0.06, ge=0.0, le=1.0)
+    # When True (default), the auto-enroll rate supersedes every persona's individual
+    # deferral rate. When False, only unenrolled personas (deferral_rate == 0) are affected.
+    auto_enroll_overrides_personal_rate: bool = True
     auto_escalation_enabled: bool = True
     auto_escalation_rate: float = Field(default=0.01, ge=0.0, le=1.0)
     auto_escalation_cap: float = Field(default=0.10, ge=0.0, le=1.0)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useOutletContext, useNavigate, useParams, useBlocker } from 'react-router-dom'
 import { ChevronRight, AlertTriangle } from 'lucide-react'
 import { getScenario, updateScenario } from '../services/api'
@@ -19,13 +19,13 @@ export default function ScenarioEditPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
-  const [isDirty, setIsDirty] = useState(false)
+  const isDirtyRef = useRef(false)
 
   const blocker = useBlocker(
     useCallback(
       ({ currentLocation, nextLocation }: { currentLocation: { pathname: string }; nextLocation: { pathname: string } }) =>
-        isDirty && currentLocation.pathname !== nextLocation.pathname,
-      [isDirty],
+        isDirtyRef.current && currentLocation.pathname !== nextLocation.pathname,
+      [],
     ),
   )
 
@@ -91,7 +91,7 @@ export default function ScenarioEditPage() {
 
   if (!scenario) return null
 
-  const handleSubmit = async (planDesign: PlanDesign) => {
+  const handleSubmit = async (planDesign: PlanDesign, destination?: string) => {
     setError(null)
     setIsSubmitting(true)
     try {
@@ -100,13 +100,17 @@ export default function ScenarioEditPage() {
         description: description.trim() || undefined,
         plan_design: { ...planDesign, name: name.trim() },
       })
-      setIsDirty(false)
-      navigate('/scenarios')
+      isDirtyRef.current = false
+      navigate(destination ?? '/scenarios')
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleSubmitAndRun = (planDesign: PlanDesign) => {
+    handleSubmit(planDesign, `/scenarios/${scenarioId}/results`)
   }
 
   return (
@@ -136,7 +140,7 @@ export default function ScenarioEditPage() {
               value={name}
               onChange={(e) => {
                 setName(e.target.value)
-                setIsDirty(true)
+                isDirtyRef.current = true
               }}
             />
           </div>
@@ -152,7 +156,7 @@ export default function ScenarioEditPage() {
               value={description}
               onChange={(e) => {
                 setDescription(e.target.value)
-                setIsDirty(true)
+                isDirtyRef.current = true
               }}
             />
           </div>
@@ -187,6 +191,7 @@ export default function ScenarioEditPage() {
           <PlanDesignForm
             initialValues={scenario.plan_design}
             onSubmit={handleSubmit}
+            onSubmitAndRun={handleSubmitAndRun}
             onCancel={() => navigate('/scenarios')}
             isSubmitting={isSubmitting}
           />

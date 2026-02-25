@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Play } from 'lucide-react'
 import type {
   PlanDesign,
   MatchTier,
@@ -18,6 +18,7 @@ const DEFAULT_PLAN_DESIGN: PlanDesign = {
   core_eligibility_months: 0,
   auto_enroll_enabled: false,
   auto_enroll_rate: 0,
+  auto_enroll_overrides_personal_rate: true,
   auto_escalation_enabled: false,
   auto_escalation_rate: 0,
   auto_escalation_cap: 0,
@@ -26,6 +27,7 @@ const DEFAULT_PLAN_DESIGN: PlanDesign = {
 interface PlanDesignFormProps {
   initialValues?: PlanDesign
   onSubmit: (pd: PlanDesign) => void
+  onSubmitAndRun?: (pd: PlanDesign) => void
   onCancel: () => void
   isSubmitting: boolean
 }
@@ -42,6 +44,7 @@ function fromPercent(val: string): number {
 export default function PlanDesignForm({
   initialValues,
   onSubmit,
+  onSubmitAndRun,
   onCancel,
   isSubmitting,
 }: PlanDesignFormProps) {
@@ -263,7 +266,7 @@ export default function PlanDesignForm({
                   type="number"
                   min={0}
                   max={100}
-                  step={1}
+                  step={0.1}
                   className={`mt-1 block w-full rounded-lg border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${
                     errors[`match_tier_${i}_rate`] ? 'border-red-300' : 'border-gray-300'
                   }`}
@@ -280,7 +283,7 @@ export default function PlanDesignForm({
                   type="number"
                   min={0}
                   max={100}
-                  step={1}
+                  step={0.1}
                   className={`mt-1 block w-full rounded-lg border px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${
                     errors[`match_tier_${i}_pct`] ? 'border-red-300' : 'border-gray-300'
                   }`}
@@ -520,6 +523,17 @@ export default function PlanDesignForm({
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
+                checked={form.auto_enroll_overrides_personal_rate}
+                onChange={(e) => updateField('auto_enroll_overrides_personal_rate', e.target.checked)}
+                className="rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+              />
+              Override individual deferral rates
+              <span className="text-xs text-gray-400">(apply plan rate to all participants)</span>
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
                 checked={form.auto_escalation_enabled}
                 onChange={(e) => handleAutoEscalationToggle(e.target.checked)}
                 className="rounded border-gray-300 text-brand-500 focus:ring-brand-500"
@@ -610,14 +624,34 @@ export default function PlanDesignForm({
         </button>
         <button
           type="submit"
-          className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           disabled={isSubmitting || Object.keys(errors).length > 0}
         >
           {isSubmitting && (
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
           )}
           Save
         </button>
+        {onSubmitAndRun && (
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+            disabled={isSubmitting || Object.keys(errors).length > 0}
+            onClick={() => {
+              const errs = validate(form)
+              if (Object.keys(errs).length === 0) {
+                onSubmitAndRun(form)
+              }
+            }}
+          >
+            {isSubmitting ? (
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+            Save & Run
+          </button>
+        )}
       </div>
     </form>
   )

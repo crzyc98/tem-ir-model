@@ -1,4 +1,4 @@
-import { Copy, Trash2 } from 'lucide-react'
+import { Copy, Trash2, BarChart3 } from 'lucide-react'
 import type { ScenarioSummary } from '../types/scenario'
 
 function formatRelativeTime(dateString: string): string {
@@ -28,6 +28,7 @@ interface ScenarioCardProps {
   onClick: () => void
   onDuplicate: () => void
   onDelete: () => void
+  onViewResults: () => void
   isDuplicating?: boolean
 }
 
@@ -37,6 +38,7 @@ export default function ScenarioCard({
   onClick,
   onDuplicate,
   onDelete,
+  onViewResults,
   isDuplicating = false,
 }: ScenarioCardProps) {
   return (
@@ -76,6 +78,17 @@ export default function ScenarioCard({
           {formatRelativeTime(scenario.updated_at)}
         </span>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="rounded p-1 text-gray-400 hover:bg-brand-50 hover:text-brand-500"
+            onClick={(e) => {
+              e.stopPropagation()
+              onViewResults()
+            }}
+            aria-label="View results"
+          >
+            <BarChart3 className="h-4 w-4" />
+          </button>
           <button
             type="button"
             className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-blue-500 disabled:opacity-50"

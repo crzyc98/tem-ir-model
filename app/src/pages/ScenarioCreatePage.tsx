@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useOutletContext, useNavigate, useBlocker } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { createScenario } from '../services/api'
@@ -15,13 +15,13 @@ export default function ScenarioCreatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [nameError, setNameError] = useState<string | null>(null)
-  const [isDirty, setIsDirty] = useState(false)
+  const isDirtyRef = useRef(false)
 
   const blocker = useBlocker(
     useCallback(
       ({ currentLocation, nextLocation }: { currentLocation: { pathname: string }; nextLocation: { pathname: string } }) =>
-        isDirty && currentLocation.pathname !== nextLocation.pathname,
-      [isDirty],
+        isDirtyRef.current && currentLocation.pathname !== nextLocation.pathname,
+      [],
     ),
   )
 
@@ -30,7 +30,7 @@ export default function ScenarioCreatePage() {
     return null
   }
 
-  const handleSubmit = async (planDesign: PlanDesign) => {
+  const handleSubmit = async (planDesign: PlanDesign, runAfter = false) => {
     setNameError(null)
     setError(null)
 
@@ -41,13 +41,13 @@ export default function ScenarioCreatePage() {
 
     setIsSubmitting(true)
     try {
-      await createScenario(activeWorkspace.id, {
+      const scenario = await createScenario(activeWorkspace.id, {
         name: name.trim(),
         description: description.trim() || undefined,
         plan_design: { ...planDesign, name: name.trim() },
       })
-      setIsDirty(false)
-      navigate('/scenarios')
+      isDirtyRef.current = false
+      navigate(runAfter ? `/scenarios/${scenario.id}/results` : '/scenarios')
     } catch (err) {
       const message = (err as Error).message
       if (message.includes('404')) {
@@ -59,6 +59,10 @@ export default function ScenarioCreatePage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleSubmitAndRun = (planDesign: PlanDesign) => {
+    handleSubmit(planDesign, true)
   }
 
   return (
@@ -92,7 +96,7 @@ export default function ScenarioCreatePage() {
               value={name}
               onChange={(e) => {
                 setName(e.target.value)
-                setIsDirty(true)
+                isDirtyRef.current = true
                 if (nameError) setNameError(null)
               }}
               placeholder="e.g., Base Plan"
@@ -112,7 +116,7 @@ export default function ScenarioCreatePage() {
               value={description}
               onChange={(e) => {
                 setDescription(e.target.value)
-                setIsDirty(true)
+                isDirtyRef.current = true
               }}
               placeholder="Optional description..."
             />
@@ -126,6 +130,7 @@ export default function ScenarioCreatePage() {
 
           <PlanDesignForm
             onSubmit={handleSubmit}
+            onSubmitAndRun={handleSubmitAndRun}
             onCancel={() => navigate('/scenarios')}
             isSubmitting={isSubmitting}
           />

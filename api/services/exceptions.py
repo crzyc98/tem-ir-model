@@ -20,5 +20,16 @@ class ScenarioNotFoundError(Exception):
         )
 
 
+class ComparisonNotFoundError(Exception):
+    """Raised when a comparison ID does not exist within a workspace."""
+
+    def __init__(self, comparison_id: str, workspace_id: str) -> None:
+        self.comparison_id = comparison_id
+        self.workspace_id = workspace_id
+        super().__init__(
+            f"Comparison {comparison_id} not found in workspace {workspace_id}"
+        )
+
+
 class StorageError(Exception):
     """Raised when a filesystem I/O operation fails."""

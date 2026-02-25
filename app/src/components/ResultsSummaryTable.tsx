@@ -26,6 +26,7 @@ export default function ResultsSummaryTable({ personas, confidenceLevel }: Resul
             <th className="px-4 py-3 text-right font-medium text-gray-600">Annual Income</th>
             <th className="px-4 py-3 text-right font-medium text-gray-600">Replacement Ratio</th>
             <th className="px-4 py-3 text-right font-medium text-gray-600">Success Prob.</th>
+            <th className="px-4 py-3 text-right font-medium text-gray-600">Assessment</th>
             <th className="px-4 py-3 text-right font-medium text-gray-600">Employer Contributions</th>
             <th className="px-4 py-3 text-right font-medium text-gray-600">Employee Contributions</th>
           </tr>
@@ -50,6 +51,9 @@ export default function ResultsSummaryTable({ personas, confidenceLevel }: Resul
                 </td>
                 <td className="px-4 py-3 text-right text-gray-700">
                   {formatPercent(p.probability_of_success, 0)}
+                </td>
+                <td className="px-4 py-3 text-right text-gray-700">
+                  {p.pos_assessment}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-700">
                   {formatCurrency(p.total_employer_contributions)}

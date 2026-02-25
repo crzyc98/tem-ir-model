@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -6,25 +5,24 @@ import {
   GitCompare,
   FolderOpen,
   Settings,
-  ChevronDown,
-  ChevronRight,
+  PanelLeftOpen,
+  PanelLeftClose,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import WorkspaceSelector from './WorkspaceSelector'
-import type { NavItem } from '../types/navigation'
 import type { WorkspaceSummary } from '../types/workspace'
 
-const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard', end: true },
-  {
-    label: 'Modeling',
-    icon: Users,
-    children: [
-      { label: 'Persona Modeling', icon: Users, to: '/personas' },
-      { label: 'Plan Comparison', icon: GitCompare, to: '/plans' },
-    ],
-  },
-  { label: 'Scenarios', icon: FolderOpen, to: '/scenarios' },
-  { label: 'Settings', icon: Settings, to: '/settings' },
+type NavEntry =
+  | { kind: 'section'; label: string }
+  | { kind: 'link'; label: string; icon: LucideIcon; to: string; end?: boolean }
+
+const navEntries: NavEntry[] = [
+  { kind: 'link', label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard', end: true },
+  { kind: 'section', label: 'Modeling' },
+  { kind: 'link', label: 'Persona Modeling', icon: Users, to: '/personas' },
+  { kind: 'link', label: 'Plan Comparison', icon: GitCompare, to: '/plans' },
+  { kind: 'link', label: 'Scenarios', icon: FolderOpen, to: '/scenarios' },
+  { kind: 'link', label: 'Settings', icon: Settings, to: '/settings' },
 ]
 
 interface SidebarProps {
@@ -34,6 +32,8 @@ interface SidebarProps {
   isWorkspaceLoading: boolean
   workspaceError: string | null
   onWorkspaceRetry: () => void
+  collapsed: boolean
+  onToggleCollapsed: () => void
 }
 
 export default function Sidebar({
@@ -43,108 +43,119 @@ export default function Sidebar({
   isWorkspaceLoading,
   workspaceError,
   onWorkspaceRetry,
+  collapsed,
+  onToggleCollapsed,
 }: SidebarProps) {
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    Modeling: true,
-  })
-
-  const toggleGroup = (label: string) => {
-    setExpandedGroups((prev) => ({ ...prev, [label]: !prev[label] }))
-  }
-
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-gray-200 bg-white">
-      {/* Brand */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-gray-200 px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-          R
-        </div>
-        <span className="text-lg font-semibold tracking-tight text-brand-500">
-          RetireModel
-        </span>
-      </div>
-
-      {/* Workspace Selector */}
-      <div className="border-b border-gray-200 px-3 py-3">
-        <WorkspaceSelector
-          workspaces={workspaces}
-          activeWorkspace={activeWorkspace}
-          onSelect={onWorkspaceSelect}
-          isLoading={isWorkspaceLoading}
-          error={workspaceError}
-          onRetry={onWorkspaceRetry}
-        />
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {navItems.map((item) => {
-          if (item.children) {
-            const isExpanded = expandedGroups[item.label] !== false
-            const GroupIcon = item.icon
-            return (
-              <div key={item.label}>
-                <button
-                  onClick={() => toggleGroup(item.label)}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-                >
-                  <GroupIcon className="h-5 w-5 flex-shrink-0" />
-                  <span className="flex-1 text-left">{item.label}</span>
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
-                </button>
-                {isExpanded && (
-                  <div className="ml-4 space-y-1">
-                    {item.children.map((child) => (
-                      <NavLink
-                        key={child.to}
-                        to={child.to!}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                            isActive
-                              ? 'bg-brand-50 text-brand-600'
-                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                          }`
-                        }
-                      >
-                        <child.icon className="h-5 w-5 flex-shrink-0" />
-                        {child.label}
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
+    <aside
+      className={`fixed inset-y-0 left-0 z-30 flex flex-col overflow-hidden border-r border-gray-200 bg-white transition-[width] duration-200 ease-in-out ${
+        collapsed ? 'w-16' : 'w-64'
+      }`}
+    >
+      {/* Header — 64px tall */}
+      <div className="flex h-16 shrink-0 items-center border-b border-gray-200 px-3">
+        {collapsed ? (
+          <div className="flex w-full justify-center">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
+              R
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-1 items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
+                R
               </div>
-            )
-          }
-
-          const Icon = item.icon
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to!}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-brand-50 text-brand-600'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`
-              }
+              <span className="whitespace-nowrap text-lg font-semibold tracking-tight text-brand-500">
+                RetireModel
+              </span>
+            </div>
+            <button
+              onClick={onToggleCollapsed}
+              className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+              aria-label="Collapse sidebar"
             >
-              <Icon className="h-5 w-5 flex-shrink-0" />
-              {item.label}
-            </NavLink>
-          )
-        })}
+              <PanelLeftClose className="h-5 w-5" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Expand toggle — shown only when collapsed */}
+      {collapsed && (
+        <div className="flex justify-center border-b border-gray-200 py-2">
+          <button
+            onClick={onToggleCollapsed}
+            className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+            aria-label="Expand sidebar"
+          >
+            <PanelLeftOpen className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+
+      {/* Workspace Selector — hidden when collapsed */}
+      {!collapsed && (
+        <div className="border-b border-gray-200 px-3 py-3">
+          <WorkspaceSelector
+            workspaces={workspaces}
+            activeWorkspace={activeWorkspace}
+            onSelect={onWorkspaceSelect}
+            isLoading={isWorkspaceLoading}
+            error={workspaceError}
+            onRetry={onWorkspaceRetry}
+          />
+        </div>
+      )}
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <ul className="space-y-0.5">
+          {navEntries.map((entry, i) => {
+            if (entry.kind === 'section') {
+              if (collapsed) return null
+              return (
+                <li
+                  key={`section-${i}`}
+                  className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wider text-gray-400"
+                >
+                  {entry.label}
+                </li>
+              )
+            }
+
+            const Icon = entry.icon
+            return (
+              <li key={entry.to}>
+                <NavLink
+                  to={entry.to}
+                  end={entry.end}
+                  title={collapsed ? entry.label : undefined}
+                  className={({ isActive }) =>
+                    `flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      collapsed ? 'justify-center' : 'gap-3'
+                    } ${
+                      isActive
+                        ? 'bg-brand-500 text-white shadow-sm'
+                        : 'text-gray-500 hover:bg-brand-50 hover:text-brand-700'
+                    }`
+                  }
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  {!collapsed && <span>{entry.label}</span>}
+                </NavLink>
+              </li>
+            )
+          })}
+        </ul>
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-gray-200 px-5 py-3">
-        <p className="text-xs text-gray-400">v0.1.0</p>
-      </div>
+      {!collapsed && (
+        <div className="border-t border-gray-200 px-5 py-3">
+          <p className="text-xs text-gray-400">v0.1.0</p>
+        </div>
+      )}
     </aside>
   )
 }

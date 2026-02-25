@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 
+from api.routers.comparisons import router as comparisons_router
 from api.routers.health import router as health_router
 from api.routers.scenarios import router as scenarios_router
 from api.routers.simulations import router as simulations_router
@@ -56,6 +57,11 @@ def create_app(base_path: Path | None = None) -> FastAPI:
         ss_estimate_router,
         prefix="/workspaces/{workspace_id}",
         tags=["ss-estimate"],
+    )
+    api_router.include_router(
+        comparisons_router,
+        prefix="/workspaces/{workspace_id}/comparisons",
+        tags=["comparisons"],
     )
     application.include_router(api_router)
 

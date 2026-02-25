@@ -38,6 +38,7 @@ export interface PlanDesign {
   core_eligibility_months: number
   auto_enroll_enabled: boolean
   auto_enroll_rate: number
+  auto_enroll_overrides_personal_rate: boolean
   auto_escalation_enabled: boolean
   auto_escalation_rate: number
   auto_escalation_cap: number

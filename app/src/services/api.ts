@@ -2,6 +2,7 @@ import type { WorkspaceSummary, HealthStatus, Workspace, WorkspaceCreate, Worksp
 import type { Persona } from '../types/persona'
 import type { ScenarioSummary, ScenarioResponse, ScenarioCreate, ScenarioUpdate } from '../types/scenario'
 import type { SimulationRequest, SimulationResponse } from '../types/simulation'
+import type { PlanComparison } from '../types/comparison'
 
 const API_BASE = '/api/v1'
 
@@ -164,4 +165,37 @@ export async function runSimulation(
     throw new Error(`Failed to run simulation: HTTP ${response.status}`)
   }
   return response.json()
+}
+
+export async function runComparison(
+  workspaceId: string,
+  req: { scenario_ids: string[]; persona_id: string },
+): Promise<PlanComparison> {
+  const response = await fetch(`${API_BASE}/workspaces/${workspaceId}/comparisons`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to run comparison: HTTP ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function listComparisons(workspaceId: string): Promise<PlanComparison[]> {
+  const response = await fetch(`${API_BASE}/workspaces/${workspaceId}/comparisons`)
+  if (!response.ok) {
+    throw new Error(`Failed to fetch comparisons: HTTP ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function deleteComparison(workspaceId: string, comparisonId: string): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/workspaces/${workspaceId}/comparisons/${comparisonId}`,
+    { method: 'DELETE' },
+  )
+  if (!response.ok) {
+    throw new Error(`Failed to delete comparison: HTTP ${response.status}`)
+  }
 }
