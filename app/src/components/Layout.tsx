@@ -10,30 +10,51 @@ export default function Layout() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchWorkspaces = useCallback(() => {
+  const fetchWorkspaces = useCallback(async () => {
     setIsLoading(true)
     setError(null)
-    listWorkspaces()
-      .then((data) => {
-        setWorkspaces(data)
-        if (data.length > 0) {
-          setActiveWorkspace(data[0])
+    try {
+      const data = await listWorkspaces()
+      setWorkspaces(data)
+      setActiveWorkspace((prev) => {
+        if (prev) {
+          const stillExists = data.find((ws) => ws.id === prev.id)
+          return stillExists ?? data[0] ?? null
         }
+        return data[0] ?? null
       })
-      .catch((err: Error) => {
-        setError(err.message)
-      })
-      .finally(() => setIsLoading(false))
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
   useEffect(() => {
     fetchWorkspaces()
   }, [fetchWorkspaces])
 
+  const refreshWorkspaces = useCallback(async () => {
+    try {
+      const data = await listWorkspaces()
+      setWorkspaces(data)
+      setActiveWorkspace((prev) => {
+        if (prev) {
+          const stillExists = data.find((ws) => ws.id === prev.id)
+          return stillExists ?? data[0] ?? null
+        }
+        return data[0] ?? null
+      })
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }, [])
+
   const context: LayoutContext = {
     activeWorkspace,
     setActiveWorkspace,
     workspaces,
+    refreshWorkspaces,
   }
 
   return (
