@@ -65,8 +65,27 @@ class WorkspaceService:
             merged = resolve_config(workspace.base_config, update.base_config)
             workspace = workspace.model_copy(update={"base_config": merged})
 
+        # Replace personas list if provided
+        if update.personas is not None:
+            workspace = workspace.model_copy(update={"personas": update.personas})
+
         # Refresh updated_at
         workspace = workspace.model_copy(update={"updated_at": _utc_now()})
+        self._store.save(workspace)
+        return workspace
+
+    def reset_personas(self, workspace_id: UUID) -> Workspace:
+        """Reset workspace personas to defaults.
+
+        Raises WorkspaceNotFoundError if the workspace does not exist.
+        """
+        workspace = self._store.load(workspace_id)
+        workspace = workspace.model_copy(
+            update={
+                "personas": default_personas(),
+                "updated_at": _utc_now(),
+            }
+        )
         self._store.save(workspace)
         return workspace
 

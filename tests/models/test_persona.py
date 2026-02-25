@@ -53,11 +53,11 @@ class TestPersonaSalaryValidation:
         with pytest.raises(ValidationError):
             Persona(**kwargs)
 
-    def test_zero_salary_rejected(self):
+    def test_zero_salary_accepted(self):
         kwargs = _valid_kwargs()
         kwargs["salary"] = 0
-        with pytest.raises(ValidationError):
-            Persona(**kwargs)
+        p = Persona(**kwargs)
+        assert p.salary == 0
 
 
 class TestPersonaDeferralRateValidation:

@@ -20,5 +20,5 @@ class Workspace(BaseModel):
     created_at: datetime = Field(default_factory=_utc_now)
     updated_at: datetime = Field(default_factory=_utc_now)
     base_config: Assumptions = Field(default_factory=Assumptions)
-    personas: list[Persona] = Field(default_factory=list)
+    personas: list[Persona] = Field(default_factory=list, max_length=12)
     monte_carlo_config: MonteCarloConfig = Field(default_factory=MonteCarloConfig)

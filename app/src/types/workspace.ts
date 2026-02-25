@@ -36,6 +36,7 @@ export interface WorkspaceUpdate {
   name?: string
   client_name?: string
   base_config?: AssumptionsOverride
+  personas?: Persona[]
 }
 
 export interface LayoutContext {

@@ -24,4 +24,5 @@ export interface Persona {
   allocation: AssetAllocation
   include_social_security: boolean
   ss_claiming_age: number
+  hidden: boolean
 }
