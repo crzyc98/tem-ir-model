@@ -14,7 +14,7 @@ Retirement plan income replacement modeling tool. Enables plan sponsors, consult
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r api/requirements.txt
+uv pip install -r api/requirements.txt
 uvicorn api.main:app --reload --port 8000
 ```
 
