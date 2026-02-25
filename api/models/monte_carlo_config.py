@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field, model_validator
 class MonteCarloConfig(BaseModel):
     """Configuration for the Monte Carlo simulation engine."""
 
-    num_simulations: int = Field(default=1000, ge=1, le=10000)
     seed: int | None = None
     retirement_age: int = Field(default=67, ge=55, le=70)
     planning_age: int = Field(default=93, ge=85, le=100)

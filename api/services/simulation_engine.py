@@ -18,6 +18,12 @@ from api.models.simulation_result import (
 )
 from api.models.vesting import VestingSchedule
 from api.models.withdrawal_strategy import ExpenseGapWithdrawal, WithdrawalStrategy
+from api.services.scenario_matrix_loader import (
+    MIN_AGE,
+    NUM_SCENARIOS,
+    ScenarioMatrixLoader,
+    get_default_loader,
+)
 from api.services.ss_estimator import SocialSecurityEstimator
 
 # Fidelity Freedom Fund glide path (effective Q1 2027)
@@ -72,7 +78,7 @@ def _pos_assessment(pos: float) -> str:
 
 
 class SimulationEngine:
-    """NumPy-vectorized Monte Carlo engine for retirement projections."""
+    """Monte Carlo engine for retirement projections using pre-computed scenario matrices."""
 
     def __init__(
         self,
@@ -80,22 +86,23 @@ class SimulationEngine:
         plan_design: PlanDesign,
         config: MonteCarloConfig,
         withdrawal_strategy: WithdrawalStrategy | None = None,
+        loader: ScenarioMatrixLoader | None = None,
     ) -> None:
         self._assumptions = assumptions
         self._plan = plan_design
         self._config = config
         self._strategy: WithdrawalStrategy = withdrawal_strategy or ExpenseGapWithdrawal()
+        self._loader: ScenarioMatrixLoader = loader if loader is not None else get_default_loader()
 
-    # --- Public API (T012) ---
+    # --- Public API ---
 
     def run(self, personas: list[Persona]) -> list[PersonaSimulationResult]:
         """Run simulation for all personas.
 
-        Derives per-persona seeds from the master seed (research.md R7)
-        so each persona's result is deterministic and order-independent.
+        Derives per-persona RNG seeds from the master seed for wage-growth noise.
+        Investment returns come from the pre-computed scenario matrices.
         """
-        seed = self._config.seed
-        master_rng = np.random.default_rng(seed)
+        master_rng = np.random.default_rng(self._config.seed)
         persona_seeds = master_rng.integers(0, 2**63, size=len(personas))
 
         results: list[PersonaSimulationResult] = []
@@ -105,14 +112,14 @@ class SimulationEngine:
             results.append(result)
         return results
 
-    # --- Core simulation loop (T011) ---
+    # --- Core simulation loop ---
 
     def _simulate_persona(
         self, persona: Persona, rng: np.random.Generator
     ) -> PersonaSimulationResult:
-        """Simulate accumulation phase for a single persona across all trials."""
+        """Simulate accumulation + distribution for a single persona across all 250 scenarios."""
         retirement_age = self._config.retirement_age
-        n = self._config.num_simulations
+        n = NUM_SCENARIOS  # fixed at 250
         a = self._assumptions
 
         calendar_year = datetime.now(UTC).year
@@ -144,21 +151,22 @@ class SimulationEngine:
 
         num_years = retirement_age - persona.age - 1  # last contribution year is retirement_age - 1
 
-        # Initialise arrays (vectorised across trials)
+        # Matrix row index for the first return year.
+        # Row i corresponds to age MIN_AGE + i; clamp negative rows to 0.
+        start_row = max(0, persona.age - MIN_AGE)
+
+        # Initialise arrays (vectorised across 250 scenarios)
         balances = np.full(n, persona.current_balance, dtype=np.float64)
         salaries = np.full(n, persona.salary, dtype=np.float64)
 
-        # Auto-enrollment (research.md R8)
-        # When auto_enroll_overrides_personal_rate=True (default), the plan rate
-        # applies to all personas. When False, only unenrolled (rate==0) personas
-        # are affected. Auto-escalation is only active when auto-enroll is on.
+        # Auto-enrollment
         initial_rate = persona.deferral_rate
         if self._plan.auto_enroll_enabled:
             if self._plan.auto_enroll_overrides_personal_rate or initial_rate == 0.0:
                 initial_rate = self._plan.auto_enroll_rate
         deferral_rates = np.full(n, initial_rate, dtype=np.float64)
 
-        # Contribution accumulators (T006)
+        # Contribution accumulators
         cum_deferrals = np.zeros(n, dtype=np.float64)
         cum_match = np.zeros(n, dtype=np.float64)
         cum_core = np.zeros(n, dtype=np.float64)
@@ -179,8 +187,7 @@ class SimulationEngine:
             # 2. Cap compensation
             capped_comp = np.minimum(salaries, a.comp_limit)
 
-            # 3. Auto-escalation (research.md R8 — from year 1 onwards)
-            # Only applies when auto-enroll is active; no escalation in persona-rate-only mode.
+            # 3. Auto-escalation
             if self._plan.auto_enroll_enabled and self._plan.auto_escalation_enabled:
                 deferral_rates = np.minimum(
                     deferral_rates + self._plan.auto_escalation_rate,
@@ -197,48 +204,46 @@ class SimulationEngine:
             # 6. Employer core
             core = self._calculate_core(capped_comp, age, tenure)
 
-            # 7. Eligibility check (FR-017)
+            # 7. Eligibility check
             tenure_months = tenure * 12
             if tenure_months < self._plan.match_eligibility_months:
                 match = np.zeros(n)
             if tenure_months < self._plan.core_eligibility_months:
                 core = np.zeros(n)
 
-            # 8. Section 415 limit (research.md R6)
+            # 8. Section 415 limit
             total_additions = deferrals + match + core
             excess = np.maximum(total_additions - a.additions_limit, 0.0)
-            # Reduce core first
             core_reduction = np.minimum(excess, core)
             core = core - core_reduction
             excess = excess - core_reduction
-            # Then reduce match
             match_reduction = np.minimum(excess, match)
             match = match - match_reduction
 
             # 9. Vesting
-            match_vested_pct = self._get_vesting_pct(
-                self._plan.match_vesting, tenure
-            )
-            core_vested_pct = self._get_vesting_pct(
-                self._plan.core_vesting, tenure
-            )
+            match_vested_pct = self._get_vesting_pct(self._plan.match_vesting, tenure)
+            core_vested_pct = self._get_vesting_pct(self._plan.core_vesting, tenure)
             vested_match = match * match_vested_pct
             vested_core = core * core_vested_pct
 
-            # 10. Investment returns
+            # 10. Investment returns from pre-computed scenario matrix.
+            # Returns are already real (no Fisher conversion needed).
+            # row = start_row + year_idx maps to age = persona.age + year_idx.
             current_year = base_year + year_idx
-            us_eq, intl_eq, bonds, short_term = self._get_allocation(
+            us_eq, intl_eq, bonds_pct, short_term = self._get_allocation(
                 persona, current_year
             )
+            matrix_row = start_row + year_idx
+            stock_ret = self._loader.stocks[matrix_row, :]  # shape (250,)
+            bond_ret  = self._loader.bonds[matrix_row, :]
+            cash_ret  = self._loader.cash[matrix_row, :]
+            blended_return = (
+                (us_eq + intl_eq) * stock_ret
+                + bonds_pct * bond_ret
+                + short_term * cash_ret
+            )
 
-            us_ret  = rng.normal(a.equity.expected_return,      a.equity.standard_deviation,      n)
-            int_ret = rng.normal(a.intl_equity.expected_return, a.intl_equity.standard_deviation, n)
-            fi_ret  = rng.normal(a.fixed_income.expected_return, a.fixed_income.standard_deviation, n)
-            ca_ret  = rng.normal(a.cash.expected_return,        a.cash.standard_deviation,        n)
-            blended_nominal = us_eq * us_ret + intl_eq * int_ret + bonds * fi_ret + short_term * ca_ret
-            blended_return = (1.0 + blended_nominal) / (1.0 + a.inflation_rate) - 1.0
-
-            # 12. Balance update (beginning-of-year contribution assumption)
+            # 11. Balance update (beginning-of-year contribution assumption)
             contributions = deferrals + vested_match + vested_core
             balances = (balances + contributions) * (1.0 + blended_return)
 
@@ -249,7 +254,7 @@ class SimulationEngine:
 
             all_balances.append(balances.copy())
 
-        # --- Social Security (computed before distribution to inform dist_params) ---
+        # --- Social Security ---
         ss_annual: float = 0.0
         if persona.include_social_security:
             ss_estimator = SocialSecurityEstimator(self._assumptions)
@@ -263,7 +268,6 @@ class SimulationEngine:
 
         # --- Expense target ---
         years_to_retirement = retirement_age - persona.age
-        # Project salary to age retirement_age - 1 (last working year), not retirement_age
         projected_salary = persona.salary * (
             (1.0 + a.salary_real_growth_rate) ** (years_to_retirement - 1)
         )
@@ -272,7 +276,7 @@ class SimulationEngine:
         )
         expense_target_real = projected_salary * target_ratio
 
-        # --- Distribution phase (retirement_age → planning_age, inclusive) ---
+        # --- Distribution phase ---
         planning_age = self._config.planning_age
         distribution_years = planning_age - retirement_age + 1
         all_withdrawals: list[np.ndarray] = []
@@ -281,20 +285,17 @@ class SimulationEngine:
         if distribution_years > 0:
             retirement_balances = balances.copy()
 
-            # Compute blended expected nominal return at retirement allocation
-            # Use retirement_age - persona.age (not num_years) since last contribution
-            # year is retirement_age - 1; the distribution glide path is at retirement_age.
+            # Expected nominal return at retirement for dist_params (scalar estimate).
             current_year_at_retirement = base_year + (retirement_age - persona.age)
-            us_eq, intl_eq, bonds, short_term = self._get_allocation(
+            us_eq, intl_eq, bonds_pct, short_term = self._get_allocation(
                 persona, current_year_at_retirement
             )
             r_nominal = (
                 us_eq        * a.equity.expected_return
                 + intl_eq    * a.intl_equity.expected_return
-                + bonds      * a.fixed_income.expected_return
+                + bonds_pct  * a.fixed_income.expected_return
                 + short_term * a.cash.expected_return
             )
-            # Fisher formula for real return
             r_real = (1.0 + r_nominal) / (1.0 + a.inflation_rate) - 1.0
 
             dist_params = {
@@ -310,7 +311,7 @@ class SimulationEngine:
             for year_idx in range(1, distribution_years + 1):
                 year_in_retirement = year_idx
 
-                # Withdraw — strategy returns real (today's dollars) withdrawal
+                # Withdraw
                 w_real = self._strategy.calculate_withdrawal(
                     balances, year_in_retirement, retirement_balances, dist_params
                 )
@@ -318,17 +319,21 @@ class SimulationEngine:
                 balances = balances - w_real
                 balances = np.maximum(balances, 0.0)
 
-                # Investment returns — convert to real via Fisher (balances are real)
+                # Investment returns from matrix.
+                # row = start_row + num_years + year_idx maps to age = retirement_age + year_idx - 1.
                 current_year = base_year + num_years + year_idx
-                us_eq, intl_eq, bonds, short_term = self._get_allocation(
+                us_eq, intl_eq, bonds_pct, short_term = self._get_allocation(
                     persona, current_year
                 )
-                us_ret  = rng.normal(a.equity.expected_return,      a.equity.standard_deviation,      n)
-                int_ret = rng.normal(a.intl_equity.expected_return, a.intl_equity.standard_deviation, n)
-                fi_ret  = rng.normal(a.fixed_income.expected_return, a.fixed_income.standard_deviation, n)
-                ca_ret  = rng.normal(a.cash.expected_return,        a.cash.standard_deviation,        n)
-                blended_nominal = us_eq * us_ret + intl_eq * int_ret + bonds * fi_ret + short_term * ca_ret
-                blended_return = (1.0 + blended_nominal) / (1.0 + a.inflation_rate) - 1.0
+                matrix_row = start_row + num_years + year_idx
+                stock_ret = self._loader.stocks[matrix_row, :]
+                bond_ret  = self._loader.bonds[matrix_row, :]
+                cash_ret  = self._loader.cash[matrix_row, :]
+                blended_return = (
+                    (us_eq + intl_eq) * stock_ret
+                    + bonds_pct * bond_ret
+                    + short_term * cash_ret
+                )
                 balances = balances * (1.0 + blended_return)
                 balances = np.maximum(balances, 0.0)
 
@@ -341,7 +346,7 @@ class SimulationEngine:
                 all_balances.append(balances.copy())
                 all_withdrawals.append(w_real.copy())
 
-        # Compute percentiles across trials for each year
+        # Compute percentiles across scenarios for each year
         num_accumulation_snapshots = num_years + 1  # year 0 through retirement
         trajectory: list[YearSnapshot] = []
         for snap_idx, year_balances in enumerate(all_balances):
@@ -402,11 +407,11 @@ class SimulationEngine:
                 p90=round(annual_withdrawal.p90 + ss_annual, 2),
             )
 
-        # --- Contribution totals (T006) ---
+        # Contribution totals
         total_employee_contributions = float(np.median(cum_deferrals))
         total_employer_contributions = float(np.median(cum_match + cum_core))
 
-        # --- Probability of success + shortfall age ---
+        # Probability of success + shortfall age
         probability_of_success = 1.0
         shortfall_age_p50: int | None = None
         if distribution_years > 0:
@@ -444,7 +449,7 @@ class SimulationEngine:
             target_replacement_ratio=round(target_ratio, 4),
         )
 
-    # --- Helper: IRS deferral limit (T006, FR-005) ---
+    # --- Helper: IRS deferral limit ---
 
     def _get_deferral_limit(self, age: int) -> float:
         """Return the applicable IRS deferral limit based on age."""
@@ -455,7 +460,7 @@ class SimulationEngine:
             return a.deferral_limit + a.catchup_limit
         return a.deferral_limit
 
-    # --- Helper: vesting percentage (T007) ---
+    # --- Helper: vesting percentage ---
 
     @staticmethod
     def _get_vesting_pct(vesting: VestingSchedule, tenure_years: int) -> float:
@@ -475,7 +480,7 @@ class SimulationEngine:
             case _:
                 return 0.0
 
-    # --- Helper: allocation weights (T008, FR-011) ---
+    # --- Helper: allocation weights ---
 
     @staticmethod
     def _get_allocation(
@@ -484,25 +489,22 @@ class SimulationEngine:
         """Return (us_equity, intl_equity, bonds, short_term) for the persona's allocation."""
         alloc = persona.allocation
         if isinstance(alloc, CustomAllocation):
-            # Map stock_pct → US equity only; preserve existing return behavior
             return alloc.stock_pct, 0.0, alloc.bond_pct, alloc.cash_pct
 
         assert isinstance(alloc, TargetDateAllocation)
         ytt = alloc.target_date_vintage - current_year
 
-        # Clamp to endpoints
         if ytt >= GLIDE_PATH[0][0]:
             return GLIDE_PATH[0][1], GLIDE_PATH[0][2], GLIDE_PATH[0][3], GLIDE_PATH[0][4]
         if ytt <= GLIDE_PATH[-1][0]:
             return GLIDE_PATH[-1][1], GLIDE_PATH[-1][2], GLIDE_PATH[-1][3], GLIDE_PATH[-1][4]
 
-        # Find bracketing rows and interpolate
         for i in range(len(GLIDE_PATH) - 1):
             hi = GLIDE_PATH[i]
             lo = GLIDE_PATH[i + 1]
             if lo[0] <= ytt <= hi[0]:
                 span = hi[0] - lo[0]
-                w = (ytt - lo[0]) / span  # weight toward hi row
+                w = (ytt - lo[0]) / span
                 return (
                     hi[1] * w + lo[1] * (1 - w),
                     hi[2] * w + lo[2] * (1 - w),
@@ -510,7 +512,7 @@ class SimulationEngine:
                     hi[4] * w + lo[4] * (1 - w),
                 )
 
-    # --- Helper: employer match (T009, FR-006) ---
+    # --- Helper: employer match ---
 
     def _calculate_match(
         self, deferrals: np.ndarray, capped_comp: np.ndarray
@@ -528,7 +530,7 @@ class SimulationEngine:
 
         return total_match
 
-    # --- Helper: employer core (T010, FR-007) ---
+    # --- Helper: employer core ---
 
     def _calculate_core(
         self, capped_comp: np.ndarray, age: int, tenure: int
@@ -539,7 +541,6 @@ class SimulationEngine:
         if tiers is None:
             return self._plan.core_contribution_pct * capped_comp
 
-        # Find matching tier for this age/tenure
         for tier in tiers:
             age_ok = True
             service_ok = True
@@ -556,5 +557,4 @@ class SimulationEngine:
             if age_ok and service_ok:
                 return tier.contribution_pct * capped_comp
 
-        # No matching tier — no core contribution
         return np.zeros(len(capped_comp))

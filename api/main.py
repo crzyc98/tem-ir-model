@@ -14,6 +14,7 @@ from api.routers.scenarios import router as scenarios_router
 from api.routers.simulations import router as simulations_router
 from api.routers.ss_estimate import router as ss_estimate_router
 from api.routers.workspaces import router as workspaces_router
+from api.services.scenario_matrix_loader import get_default_loader
 from api.storage.workspace_store import WorkspaceStore
 
 DEFAULT_BASE_PATH = Path.home() / ".retiremodel"
@@ -25,8 +26,9 @@ def create_app(base_path: Path | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        """Create required directories on startup."""
+        """Create required directories and pre-load scenario matrices on startup."""
         store.ensure_directories()
+        get_default_loader()  # Load scenario matrices once into memory
         yield
 
     application = FastAPI(title="RetireModel API", lifespan=lifespan)

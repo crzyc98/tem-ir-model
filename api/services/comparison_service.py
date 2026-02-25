@@ -11,6 +11,7 @@ from api.models.persona import Persona
 from api.models.scenario import Scenario
 from api.services.config_resolver import resolve_config
 from api.services.exceptions import WorkspaceNotFoundError
+from api.services.scenario_matrix_loader import NUM_SCENARIOS
 from api.services.simulation_engine import SimulationEngine
 from api.storage.comparison_store import ComparisonStore
 from api.storage.scenario_store import ScenarioStore
@@ -89,7 +90,7 @@ class ComparisonService:
             persona_name=persona.name,
             scenario_ids=scenario_ids,
             results=results,
-            num_simulations=mc.num_simulations,
+            num_simulations=NUM_SCENARIOS,
             seed=mc.seed,
             retirement_age=mc.retirement_age,
             planning_age=mc.planning_age,
