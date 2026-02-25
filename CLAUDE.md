@@ -18,6 +18,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-24
 - TypeScript 5.8.2 / React 19 + react-router-dom 7.1, lucide-react 0.469, tailwindcss 3.4.17, @tailwindcss/forms 0.5.9 (009-plan-design-form)
 - Python 3.12 (backend), TypeScript 5.8.2 / React 19 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4 (backend); react-router-dom 7.1, tailwindcss 3.4.17, recharts 2.15, lucide-react 0.469, @tailwindcss/forms 0.5.9 (frontend) (010-persona-gallery)
 - JSON files on local filesystem (`~/.retiremodel/workspaces/{workspace_id}/workspace.json`) (010-persona-gallery)
+- Python 3.12 (backend), TypeScript 5.8.2 / React 19 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy >= 1.26 (backend); react-router-dom 7.1, recharts 2.15, tailwindcss 3.4.17, lucide-react 0.469 (frontend — all existing) (011-results-dashboard)
+- N/A — compute-and-return model; no result persistence (011-results-dashboard)
 
 - Python 3.12 + Pydantic 2.10.4, FastAPI 0.115.6 (existing) (001-core-data-models)
 
@@ -37,9 +39,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.12: Follow standard conventions
 
 ## Recent Changes
+- 011-results-dashboard: Added Python 3.12 (backend), TypeScript 5.8.2 / React 19 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy >= 1.26 (backend); react-router-dom 7.1, recharts 2.15, tailwindcss 3.4.17, lucide-react 0.469 (frontend — all existing)
 - 010-persona-gallery: Added Python 3.12 (backend), TypeScript 5.8.2 / React 19 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4 (backend); react-router-dom 7.1, tailwindcss 3.4.17, recharts 2.15, lucide-react 0.469, @tailwindcss/forms 0.5.9 (frontend)
 - 009-plan-design-form: Added TypeScript 5.8.2 / React 19 + react-router-dom 7.1, lucide-react 0.469, tailwindcss 3.4.17, @tailwindcss/forms 0.5.9
-- 008-workspace-management-ui: Added TypeScript 5.8.2 / React 19 / Vite 6.2 (existing) + react-router-dom 7.1, lucide-react 0.469, tailwindcss 3.4.17, @tailwindcss/forms 0.5.9 (all existing — no new dependencies)
 
 
 <!-- MANUAL ADDITIONS START -->

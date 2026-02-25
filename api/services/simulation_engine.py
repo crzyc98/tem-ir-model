@@ -30,7 +30,7 @@ GLIDE_CASH_START = 0.02
 GLIDE_CASH_END = 0.20
 GLIDE_YEARS = 40
 
-PERCENTILES = (25, 50, 75, 90)
+PERCENTILES = (10, 25, 50, 75, 90)
 
 
 class SimulationEngine:
@@ -82,6 +82,7 @@ class SimulationEngine:
         # Edge case: persona already at or past retirement
         if persona.age >= retirement_age:
             pv = PercentileValues(
+                p10=persona.current_balance,
                 p25=persona.current_balance,
                 p50=persona.current_balance,
                 p75=persona.current_balance,
@@ -89,6 +90,7 @@ class SimulationEngine:
             )
             snap = YearSnapshot(
                 age=persona.age,
+                p10=persona.current_balance,
                 p25=persona.current_balance,
                 p50=persona.current_balance,
                 p75=persona.current_balance,
@@ -99,6 +101,7 @@ class SimulationEngine:
                 persona_name=persona.name,
                 retirement_balance=pv,
                 trajectory=[snap],
+                projected_salary_at_retirement=persona.salary,
             )
 
         num_years = retirement_age - persona.age  # years to simulate
@@ -112,6 +115,11 @@ class SimulationEngine:
         if initial_rate == 0.0 and self._plan.auto_enroll_enabled:
             initial_rate = self._plan.auto_enroll_rate
         deferral_rates = np.full(n, initial_rate, dtype=np.float64)
+
+        # Contribution accumulators (T006)
+        cum_deferrals = np.zeros(n, dtype=np.float64)
+        cum_match = np.zeros(n, dtype=np.float64)
+        cum_core = np.zeros(n, dtype=np.float64)
 
         # Year 0: record starting balance
         all_balances: list[np.ndarray] = [balances.copy()]
@@ -189,6 +197,11 @@ class SimulationEngine:
             # 12. Balance update (beginning-of-year contribution assumption)
             contributions = deferrals + vested_match + vested_core
             balances = (balances + contributions) * (1.0 + blended_return)
+
+            # Accumulate contributions
+            cum_deferrals += deferrals
+            cum_match += vested_match
+            cum_core += vested_core
 
             all_balances.append(balances.copy())
 
@@ -270,25 +283,28 @@ class SimulationEngine:
                 dist_idx = snap_idx - num_accumulation_snapshots
                 w_pcts = np.percentile(all_withdrawals[dist_idx], PERCENTILES)
                 withdrawal_pv = PercentileValues(
-                    p25=round(float(w_pcts[0]), 2),
-                    p50=round(float(w_pcts[1]), 2),
-                    p75=round(float(w_pcts[2]), 2),
-                    p90=round(float(w_pcts[3]), 2),
+                    p10=round(float(w_pcts[0]), 2),
+                    p25=round(float(w_pcts[1]), 2),
+                    p50=round(float(w_pcts[2]), 2),
+                    p75=round(float(w_pcts[3]), 2),
+                    p90=round(float(w_pcts[4]), 2),
                 )
 
             trajectory.append(
                 YearSnapshot(
                     age=age,
-                    p25=round(float(pcts[0]), 2),
-                    p50=round(float(pcts[1]), 2),
-                    p75=round(float(pcts[2]), 2),
-                    p90=round(float(pcts[3]), 2),
+                    p10=round(float(pcts[0]), 2),
+                    p25=round(float(pcts[1]), 2),
+                    p50=round(float(pcts[2]), 2),
+                    p75=round(float(pcts[3]), 2),
+                    p90=round(float(pcts[4]), 2),
                     withdrawal=withdrawal_pv,
                 )
             )
 
         retirement_snap = trajectory[num_accumulation_snapshots - 1]
         retirement_balance = PercentileValues(
+            p10=retirement_snap.p10,
             p25=retirement_snap.p25,
             p50=retirement_snap.p50,
             p75=retirement_snap.p75,
@@ -299,10 +315,11 @@ class SimulationEngine:
         if all_withdrawals:
             aw_pcts = np.percentile(all_withdrawals[0], PERCENTILES)
             annual_withdrawal = PercentileValues(
-                p25=round(float(aw_pcts[0]), 2),
-                p50=round(float(aw_pcts[1]), 2),
-                p75=round(float(aw_pcts[2]), 2),
-                p90=round(float(aw_pcts[3]), 2),
+                p10=round(float(aw_pcts[0]), 2),
+                p25=round(float(aw_pcts[1]), 2),
+                p50=round(float(aw_pcts[2]), 2),
+                p75=round(float(aw_pcts[3]), 2),
+                p90=round(float(aw_pcts[4]), 2),
             )
 
         # --- Social Security benefit (deterministic, computed once) ---
@@ -320,10 +337,37 @@ class SimulationEngine:
         total_retirement_income: PercentileValues | None = None
         if annual_withdrawal is not None:
             total_retirement_income = PercentileValues(
+                p10=round(annual_withdrawal.p10 + ss_annual, 2),
                 p25=round(annual_withdrawal.p25 + ss_annual, 2),
                 p50=round(annual_withdrawal.p50 + ss_annual, 2),
                 p75=round(annual_withdrawal.p75 + ss_annual, 2),
                 p90=round(annual_withdrawal.p90 + ss_annual, 2),
+            )
+
+        # --- Contribution totals (T006) ---
+        total_employee_contributions = float(np.median(cum_deferrals))
+        total_employer_contributions = float(np.median(cum_match + cum_core))
+
+        # --- Probability of success (T007) ---
+        probability_of_success = 1.0
+        if distribution_years > 0:
+            final_balances = all_balances[-1]
+            probability_of_success = float(np.sum(final_balances > 0) / n)
+
+        # --- Projected salary at retirement & income replacement ratio (T007) ---
+        years_to_retirement = retirement_age - persona.age
+        projected_salary = persona.salary * (
+            (1.0 + a.wage_growth_rate) ** years_to_retirement
+        )
+
+        income_replacement_ratio: PercentileValues | None = None
+        if total_retirement_income is not None and projected_salary > 0:
+            income_replacement_ratio = PercentileValues(
+                p10=round(total_retirement_income.p10 / projected_salary, 4),
+                p25=round(total_retirement_income.p25 / projected_salary, 4),
+                p50=round(total_retirement_income.p50 / projected_salary, 4),
+                p75=round(total_retirement_income.p75 / projected_salary, 4),
+                p90=round(total_retirement_income.p90 / projected_salary, 4),
             )
 
         return PersonaSimulationResult(
@@ -334,6 +378,11 @@ class SimulationEngine:
             ss_annual_benefit=ss_annual,
             total_retirement_income=total_retirement_income,
             trajectory=trajectory,
+            total_employee_contributions=round(total_employee_contributions, 2),
+            total_employer_contributions=round(total_employer_contributions, 2),
+            probability_of_success=round(probability_of_success, 4),
+            income_replacement_ratio=income_replacement_ratio,
+            projected_salary_at_retirement=round(projected_salary, 2),
         )
 
     # --- Helper: IRS deferral limit (T006, FR-005) ---

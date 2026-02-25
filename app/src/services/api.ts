@@ -1,6 +1,7 @@
 import type { WorkspaceSummary, HealthStatus, Workspace, WorkspaceCreate, WorkspaceUpdate } from '../types/workspace'
 import type { Persona } from '../types/persona'
 import type { ScenarioSummary, ScenarioResponse, ScenarioCreate, ScenarioUpdate } from '../types/scenario'
+import type { SimulationRequest, SimulationResponse } from '../types/simulation'
 
 const API_BASE = '/api/v1'
 
@@ -142,6 +143,25 @@ export async function duplicateScenario(workspaceId: string, scenarioId: string)
   })
   if (!response.ok) {
     throw new Error(`Failed to duplicate scenario: HTTP ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function runSimulation(
+  workspaceId: string,
+  scenarioId: string,
+  request?: SimulationRequest,
+): Promise<SimulationResponse> {
+  const response = await fetch(
+    `${API_BASE}/workspaces/${workspaceId}/scenarios/${scenarioId}/simulate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: request ? JSON.stringify(request) : undefined,
+    },
+  )
+  if (!response.ok) {
+    throw new Error(`Failed to run simulation: HTTP ${response.status}`)
   }
   return response.json()
 }
