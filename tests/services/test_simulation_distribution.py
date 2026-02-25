@@ -93,9 +93,9 @@ class TestAccumulationUnchanged:
 
         # Without distribution phase (planning_age == retirement_age is invalid,
         # so we compare accumulation-phase snapshots only)
-        # The accumulation snapshots are ages 25..67 = first 43 entries
+        # The accumulation snapshots are ages 25..66 = first 42 entries
         accum_snapshots_with = [
-            s for s in results_with[0].trajectory if s.age <= 67
+            s for s in results_with[0].trajectory if s.age < 67
         ]
 
         # Run again with same seed — accumulation should be identical
@@ -107,7 +107,7 @@ class TestAccumulationUnchanged:
         )
         results_again = engine_again.run([persona])
         accum_snapshots_again = [
-            s for s in results_again[0].trajectory if s.age <= 67
+            s for s in results_again[0].trajectory if s.age < 67
         ]
 
         for s1, s2 in zip(accum_snapshots_with, accum_snapshots_again):
@@ -241,7 +241,7 @@ class TestNoDistributionPhase:
         assert trajectory[-1].age == 86
         # Accumulation snapshots should have no withdrawal
         for snap in trajectory:
-            if snap.age <= 67:
+            if snap.age < 67:
                 assert snap.withdrawal is None
             else:
                 assert snap.withdrawal is not None
@@ -264,7 +264,7 @@ class TestWithdrawalPercentileValues:
         )
         results = engine.run([persona])
         for snap in results[0].trajectory:
-            if snap.age > 67:
+            if snap.age >= 67:
                 assert snap.withdrawal is not None
                 assert snap.withdrawal.p25 >= 0
                 assert snap.withdrawal.p50 >= 0
@@ -285,7 +285,7 @@ class TestWithdrawalPercentileValues:
             config=config,
         )
         results = engine.run([persona])
-        dist_snaps = [s for s in results[0].trajectory if s.age > 67]
+        dist_snaps = [s for s in results[0].trajectory if s.age >= 67]
         p50_withdrawals = [s.withdrawal.p50 for s in dist_snaps]
         # First few years should have nearly identical p50 withdrawal (real terms)
         # Later years may drop as some trials deplete
@@ -311,7 +311,7 @@ class TestAnnualWithdrawalHeadline:
         aw = results[0].annual_withdrawal
         assert aw is not None
         # Should match the first distribution year's withdrawal percentiles
-        first_dist = [s for s in results[0].trajectory if s.age > 67][0]
+        first_dist = [s for s in results[0].trajectory if s.age >= 67][0]
         assert aw.p25 == first_dist.withdrawal.p25
         assert aw.p50 == first_dist.withdrawal.p50
         assert aw.p75 == first_dist.withdrawal.p75

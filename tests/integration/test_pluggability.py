@@ -57,8 +57,8 @@ class TestAlternativeStrategyRuns:
         assert len(results) == 1
         trajectory = results[0].trajectory
         # Distribution phase should be populated
-        dist_snaps = [s for s in trajectory if s.age > 67]
-        assert len(dist_snaps) == 26  # 68..93
+        dist_snaps = [s for s in trajectory if s.age >= 67]
+        assert len(dist_snaps) == 27  # 67..93
 
     def test_distribution_trajectory_populated(self):
         persona = default_personas()[0]
@@ -73,7 +73,7 @@ class TestAlternativeStrategyRuns:
         )
         results = engine.run([persona])
         for snap in results[0].trajectory:
-            if snap.age > 67:
+            if snap.age >= 67:
                 assert snap.withdrawal is not None
 
 
@@ -106,9 +106,9 @@ class TestAccumulationIdenticalDistributionDiffers:
         traj_sys = results_sys[0].trajectory
         traj_fixed = results_fixed[0].trajectory
 
-        # Accumulation snapshots (age <= 67) should be identical
+        # Accumulation snapshots (age < 67) should be identical
         for s1, s2 in zip(traj_sys, traj_fixed):
-            if s1.age > 67:
+            if s1.age >= 67:
                 break
             assert s1.p25 == s2.p25
             assert s1.p50 == s2.p50
@@ -116,8 +116,8 @@ class TestAccumulationIdenticalDistributionDiffers:
             assert s1.p90 == s2.p90
 
         # Distribution results should differ
-        dist_sys = [s for s in traj_sys if s.age > 67]
-        dist_fixed = [s for s in traj_fixed if s.age > 67]
+        dist_sys = [s for s in traj_sys if s.age >= 67]
+        dist_fixed = [s for s in traj_fixed if s.age >= 67]
 
         any_balance_diff = any(
             s1.p50 != s2.p50 for s1, s2 in zip(dist_sys, dist_fixed)
@@ -139,11 +139,9 @@ class TestFixedStrategyExpectedWithdrawals:
             withdrawal_strategy=FixedDollarWithdrawal(annual_amount=20_000.0),
         )
         results = engine.run([persona])
-        # First distribution year: withdrawal should be ≈ $20k for trials
-        # with balance > $20k (p50 withdrawal should be near $20k)
-        first_dist = [s for s in results[0].trajectory if s.age == 68][0]
+        # First distribution year is age 67; strategy returns real dollars directly
+        first_dist = [s for s in results[0].trajectory if s.age == 67][0]
         assert first_dist.withdrawal is not None
-        # p50 withdrawal (in real terms) should be close to 20000 / (1.025)^1
-        # since the engine records real = nominal / (1+inflation)^year
-        expected_real = 20_000.0 / 1.025
+        # FixedDollarWithdrawal returns $20k in real terms; engine stores as-is
+        expected_real = 20_000.0
         assert abs(first_dist.withdrawal.p50 - expected_real) < 1_000

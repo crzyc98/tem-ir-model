@@ -12,6 +12,13 @@ function getPercentileValue(pv: PercentileValues | null, field: keyof Percentile
   return pv[field]
 }
 
+function getPosColor(pos: number): string {
+  if (pos >= 0.90) return 'text-green-600'
+  if (pos >= 0.75) return 'text-yellow-600'
+  if (pos >= 0.50) return 'text-orange-500'
+  return 'text-red-600'
+}
+
 export default function ResultsSummaryTable({ personas, confidenceLevel }: ResultsSummaryTableProps) {
   const pField = CONFIDENCE_PERCENTILE_MAP[confidenceLevel]
   const sorted = [...personas].sort((a, b) => a.persona_name.localeCompare(b.persona_name))
@@ -25,8 +32,10 @@ export default function ResultsSummaryTable({ personas, confidenceLevel }: Resul
             <th className="px-4 py-3 text-right font-medium text-gray-600">Projected Balance</th>
             <th className="px-4 py-3 text-right font-medium text-gray-600">Annual Income</th>
             <th className="px-4 py-3 text-right font-medium text-gray-600">Replacement Ratio</th>
+            <th className="px-4 py-3 text-right font-medium text-gray-600">Target Ratio</th>
             <th className="px-4 py-3 text-right font-medium text-gray-600">Success Prob.</th>
             <th className="px-4 py-3 text-right font-medium text-gray-600">Assessment</th>
+            <th className="px-4 py-3 text-right font-medium text-gray-600">Shortfall Age</th>
             <th className="px-4 py-3 text-right font-medium text-gray-600">Employer Contributions</th>
             <th className="px-4 py-3 text-right font-medium text-gray-600">Employee Contributions</th>
           </tr>
@@ -36,6 +45,7 @@ export default function ResultsSummaryTable({ personas, confidenceLevel }: Resul
             const balance = getPercentileValue(p.retirement_balance, pField)
             const income = getPercentileValue(p.total_retirement_income, pField)
             const irr = getPercentileValue(p.income_replacement_ratio, pField)
+            const posColor = getPosColor(p.probability_of_success)
 
             return (
               <tr key={p.persona_id} className="hover:bg-gray-50">
@@ -49,11 +59,21 @@ export default function ResultsSummaryTable({ personas, confidenceLevel }: Resul
                 <td className="px-4 py-3 text-right text-gray-700">
                   {irr !== null ? formatPercent(irr, 1) : 'N/A'}
                 </td>
-                <td className="px-4 py-3 text-right text-gray-700">
+                <td className="px-4 py-3 text-right text-gray-500">
+                  {p.target_replacement_ratio !== null && p.target_replacement_ratio !== undefined
+                    ? formatPercent(p.target_replacement_ratio, 0)
+                    : '—'}
+                </td>
+                <td className={`px-4 py-3 text-right font-medium ${posColor}`}>
                   {formatPercent(p.probability_of_success, 0)}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-700">
                   {p.pos_assessment}
+                </td>
+                <td className="px-4 py-3 text-right text-gray-500">
+                  {p.shortfall_age_p50 !== null && p.shortfall_age_p50 !== undefined
+                    ? `Age ${p.shortfall_age_p50}`
+                    : '—'}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-700">
                   {formatCurrency(p.total_employer_contributions)}

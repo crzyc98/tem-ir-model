@@ -142,7 +142,7 @@ class SimulationEngine:
                 projected_salary_at_retirement=persona.salary,
             )
 
-        num_years = retirement_age - persona.age  # years to simulate
+        num_years = retirement_age - persona.age - 1  # last contribution year is retirement_age - 1
 
         # Initialise arrays (vectorised across trials)
         balances = np.full(n, persona.current_balance, dtype=np.float64)
@@ -263,17 +263,18 @@ class SimulationEngine:
 
         # --- Expense target ---
         years_to_retirement = retirement_age - persona.age
+        # Project salary to age retirement_age - 1 (last working year), not retirement_age
         projected_salary = persona.salary * (
-            (1.0 + a.salary_real_growth_rate) ** years_to_retirement
+            (1.0 + a.salary_real_growth_rate) ** (years_to_retirement - 1)
         )
         target_ratio = _lookup_replacement_ratio(
             projected_salary, a.target_replacement_ratio_override
         )
         expense_target_real = projected_salary * target_ratio
 
-        # --- Distribution phase (retirement_age+1 → planning_age) ---
+        # --- Distribution phase (retirement_age → planning_age, inclusive) ---
         planning_age = self._config.planning_age
-        distribution_years = planning_age - retirement_age
+        distribution_years = planning_age - retirement_age + 1
         all_withdrawals: list[np.ndarray] = []
         annual_withdrawal: PercentileValues | None = None
 
@@ -281,7 +282,9 @@ class SimulationEngine:
             retirement_balances = balances.copy()
 
             # Compute blended expected nominal return at retirement allocation
-            current_year_at_retirement = base_year + num_years
+            # Use retirement_age - persona.age (not num_years) since last contribution
+            # year is retirement_age - 1; the distribution glide path is at retirement_age.
+            current_year_at_retirement = base_year + (retirement_age - persona.age)
             us_eq, intl_eq, bonds, short_term = self._get_allocation(
                 persona, current_year_at_retirement
             )
@@ -332,7 +335,7 @@ class SimulationEngine:
                 # Track first year each trial balance hits 0
                 newly_depleted = (balances <= 0.0) & np.isnan(shortfall_ages)
                 shortfall_ages = np.where(
-                    newly_depleted, float(retirement_age + year_idx), shortfall_ages
+                    newly_depleted, float(retirement_age - 1 + year_idx), shortfall_ages
                 )
 
                 all_balances.append(balances.copy())

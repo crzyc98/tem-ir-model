@@ -85,4 +85,9 @@ def resolve_config(
             if overrides.super_catchup_limit is not None
             else base.super_catchup_limit
         ),
+        target_replacement_ratio_override=(
+            overrides.target_replacement_ratio_override
+            if overrides.target_replacement_ratio_override is not None
+            else base.target_replacement_ratio_override
+        ),
     )

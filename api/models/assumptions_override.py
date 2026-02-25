@@ -28,3 +28,4 @@ class AssumptionsOverride(BaseModel):
     additions_limit: float | None = Field(default=None, gt=0)
     catchup_limit: float | None = Field(default=None, gt=0)
     super_catchup_limit: float | None = Field(default=None, gt=0)
+    target_replacement_ratio_override: float | None = Field(default=None, ge=0.0, le=1.0)

@@ -10,15 +10,14 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from 'recharts'
-import type { PersonaSimulationResult, ConfidenceLevel } from '../types/simulation'
+import type { ComparisonScenarioDisplay } from '../types/comparison'
+import type { ConfidenceLevel } from '../types/simulation'
 import { formatCompactCurrency } from '../utils/formatters'
-import { SCENARIO_COLORS } from '../utils/chart-colors'
 
-interface TrajectoryChartProps {
-  personas: PersonaSimulationResult[]
+interface ComparisonTrajectoryChartProps {
+  scenarios: ComparisonScenarioDisplay[]
   confidenceLevel: ConfidenceLevel
   retirementAge: number
-  planningAge?: number
 }
 
 interface ConfidenceConfig {
@@ -33,15 +32,19 @@ const CONFIDENCE_CONFIG: Record<ConfidenceLevel, ConfidenceConfig> = {
   '90': { line: 'p10', bandLower: null, bandUpper: null },
 }
 
-export default function TrajectoryChart({ personas, confidenceLevel, retirementAge, planningAge }: TrajectoryChartProps) {
+export default function ComparisonTrajectoryChart({
+  scenarios,
+  confidenceLevel,
+  retirementAge,
+}: ComparisonTrajectoryChartProps) {
   const config = CONFIDENCE_CONFIG[confidenceLevel]
   const hasBands = config.bandLower !== null && config.bandUpper !== null
 
   // Build unified dataset indexed by age
   const ageMap = new Map<number, Record<string, number>>()
 
-  personas.forEach((persona, idx) => {
-    persona.trajectory.forEach((snap) => {
+  scenarios.forEach((scenario, idx) => {
+    scenario.result.persona_result.trajectory.forEach((snap) => {
       if (!ageMap.has(snap.age)) {
         ageMap.set(snap.age, { age: snap.age })
       }
@@ -56,8 +59,15 @@ export default function TrajectoryChart({ personas, confidenceLevel, retirementA
 
   const data = Array.from(ageMap.values()).sort((a, b) => a.age - b.age)
 
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: number }) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+    label,
+  }: {
+    active?: boolean
+    payload?: Array<{ name: string; value: number; color: string }>
+    label?: number
+  }) => {
     if (!active || !payload || !label) return null
 
     const lineEntries = payload.filter((p) => p.name?.endsWith('_line'))
@@ -68,10 +78,10 @@ export default function TrajectoryChart({ personas, confidenceLevel, retirementA
           const match = entry.name.match(/^p(\d+)_line$/)
           if (!match) return null
           const idx = parseInt(match[1])
-          const persona = personas[idx]
+          const scenario = scenarios[idx]
           return (
             <p key={entry.name} className="text-xs" style={{ color: entry.color }}>
-              {persona?.persona_name}: {formatCompactCurrency(entry.value)}
+              {scenario?.scenarioName}: {formatCompactCurrency(entry.value)}
             </p>
           )
         })}
@@ -100,7 +110,7 @@ export default function TrajectoryChart({ personas, confidenceLevel, retirementA
             const match = value.match(/^p(\d+)_line$/)
             if (match) {
               const idx = parseInt(match[1])
-              return personas[idx]?.persona_name || value
+              return scenarios[idx]?.scenarioName || value
             }
             return value
           }}
@@ -112,55 +122,41 @@ export default function TrajectoryChart({ personas, confidenceLevel, retirementA
           strokeDasharray="3 3"
           label={{ value: 'Retirement', position: 'top', fill: '#6b7280', fontSize: 11 }}
         />
-        {planningAge !== undefined && (
-          <ReferenceLine
-            x={planningAge}
-            stroke="#9ca3af"
-            strokeDasharray="2 4"
-            label={{ value: 'End', position: 'top', fill: '#9ca3af', fontSize: 11 }}
-          />
-        )}
-        {/* Render bands: upper area with color fill, then lower area with white fill to cut out */}
-        {hasBands && personas.map((_, idx) => {
-          const color = SCENARIO_COLORS[idx % SCENARIO_COLORS.length]
-          return (
+        {hasBands &&
+          scenarios.map((scenario, idx) => (
             <Area
               key={`upper_${idx}`}
               dataKey={`p${idx}_upper`}
-              fill={color}
+              fill={scenario.color}
               fillOpacity={0.12}
               stroke="none"
               legendType="none"
               isAnimationActive={false}
             />
-          )
-        })}
-        {hasBands && personas.map((_, idx) => (
-          <Area
-            key={`lower_${idx}`}
-            dataKey={`p${idx}_lower`}
-            fill="#ffffff"
-            fillOpacity={1}
-            stroke="none"
-            legendType="none"
+          ))}
+        {hasBands &&
+          scenarios.map((_, idx) => (
+            <Area
+              key={`lower_${idx}`}
+              dataKey={`p${idx}_lower`}
+              fill="#ffffff"
+              fillOpacity={1}
+              stroke="none"
+              legendType="none"
+              isAnimationActive={false}
+            />
+          ))}
+        {scenarios.map((scenario, idx) => (
+          <Line
+            key={`line_${idx}`}
+            dataKey={`p${idx}_line`}
+            stroke={scenario.color}
+            strokeWidth={2}
+            dot={false}
+            name={`p${idx}_line`}
             isAnimationActive={false}
           />
         ))}
-        {/* Render lines on top */}
-        {personas.map((_, idx) => {
-          const color = SCENARIO_COLORS[idx % SCENARIO_COLORS.length]
-          return (
-            <Line
-              key={`line_${idx}`}
-              dataKey={`p${idx}_line`}
-              stroke={color}
-              strokeWidth={2}
-              dot={false}
-              name={`p${idx}_line`}
-              isAnimationActive={false}
-            />
-          )
-        })}
       </ComposedChart>
     </ResponsiveContainer>
   )

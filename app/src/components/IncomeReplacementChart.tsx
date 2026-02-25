@@ -1,11 +1,11 @@
 import {
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  ReferenceLine,
   ResponsiveContainer,
   Cell,
 } from 'recharts'
@@ -23,6 +23,23 @@ function getBarColor(ratio: number): string {
   return '#ef4444'
 }
 
+// Renders a short horizontal dash at the target ratio position for each persona
+const TargetDash = (props: { cx?: number; cy?: number }) => {
+  const { cx, cy } = props
+  if (typeof cx !== 'number' || typeof cy !== 'number') return null
+  return (
+    <line
+      x1={cx - 14}
+      x2={cx + 14}
+      y1={cy}
+      y2={cy}
+      stroke="#1e3a5f"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+    />
+  )
+}
+
 export default function IncomeReplacementChart({ personas, confidenceLevel }: IncomeReplacementChartProps) {
   const pField = CONFIDENCE_PERCENTILE_MAP[confidenceLevel]
 
@@ -31,11 +48,12 @@ export default function IncomeReplacementChart({ personas, confidenceLevel }: In
     .map((p) => ({
       name: p.persona_name,
       ratio: (p.income_replacement_ratio as PercentileValues)[pField],
+      target: p.target_replacement_ratio ?? 0.70,
     }))
 
   return (
     <ResponsiveContainer width="100%" height={350}>
-      <BarChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+      <ComposedChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis
           dataKey="name"
@@ -51,26 +69,27 @@ export default function IncomeReplacementChart({ personas, confidenceLevel }: In
           tick={{ fontSize: 12 }}
         />
         <Tooltip
-          formatter={(value: number) => [`${(value * 100).toFixed(1)}%`, 'Replacement Ratio']}
+          formatter={(value: number, name: string) => [
+            `${(value * 100).toFixed(1)}%`,
+            name === 'target' ? 'Target Ratio' : 'Replacement Ratio',
+          ]}
         />
-        <ReferenceLine
-          y={0.70}
-          stroke="#ef4444"
-          strokeDasharray="3 3"
-          label={{ value: '70%', position: 'right', fill: '#ef4444', fontSize: 12 }}
-        />
-        <ReferenceLine
-          y={0.80}
-          stroke="#22c55e"
-          strokeDasharray="3 3"
-          label={{ value: '80%', position: 'right', fill: '#22c55e', fontSize: 12 }}
-        />
-        <Bar dataKey="ratio" radius={[4, 4, 0, 0]}>
+        <Bar dataKey="ratio" name="ratio" radius={[4, 4, 0, 0]}>
           {data.map((entry, index) => (
             <Cell key={index} fill={getBarColor(entry.ratio)} />
           ))}
         </Bar>
-      </BarChart>
+        {/* Per-persona target marker rendered as a horizontal dash */}
+        <Line
+          dataKey="target"
+          name="target"
+          stroke="none"
+          dot={<TargetDash />}
+          activeDot={false}
+          legendType="none"
+          isAnimationActive={false}
+        />
+      </ComposedChart>
     </ResponsiveContainer>
   )
 }

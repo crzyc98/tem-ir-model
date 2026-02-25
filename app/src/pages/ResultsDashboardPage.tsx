@@ -172,11 +172,12 @@ export default function ResultsDashboardPage() {
 
             {/* Trajectory Chart */}
             <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-              <h3 className="mb-4 text-base font-semibold text-gray-800">Balance Accumulation Trajectories</h3>
+              <h3 className="mb-4 text-base font-semibold text-gray-800">Lifetime Balance Trajectory</h3>
               <TrajectoryChart
                 personas={simulationResult.personas}
                 confidenceLevel={confidenceLevel}
                 retirementAge={simulationResult.retirement_age}
+                planningAge={simulationResult.planning_age}
               />
             </div>
           </div>
