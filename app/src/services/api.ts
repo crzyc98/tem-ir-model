@@ -1,4 +1,5 @@
 import type { WorkspaceSummary, HealthStatus, Workspace, WorkspaceCreate, WorkspaceUpdate } from '../types/workspace'
+import type { Persona } from '../types/persona'
 import type { ScenarioSummary, ScenarioResponse, ScenarioCreate, ScenarioUpdate } from '../types/scenario'
 
 const API_BASE = '/api/v1'
@@ -58,6 +59,28 @@ export async function deleteWorkspace(workspaceId: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to delete workspace: HTTP ${response.status}`)
   }
+}
+
+export async function updateWorkspacePersonas(workspaceId: string, personas: Persona[]): Promise<Workspace> {
+  const response = await fetch(`${API_BASE}/workspaces/${workspaceId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ personas }),
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to update personas: HTTP ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function resetWorkspacePersonas(workspaceId: string): Promise<Workspace> {
+  const response = await fetch(`${API_BASE}/workspaces/${workspaceId}/personas/reset`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to reset personas: HTTP ${response.status}`)
+  }
+  return response.json()
 }
 
 export async function listScenarios(workspaceId: string): Promise<ScenarioSummary[]> {

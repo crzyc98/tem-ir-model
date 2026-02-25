@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, field_validator
 
 from api.models.assumptions_override import AssumptionsOverride
+from api.models.persona import Persona
 from api.models.workspace import Workspace
 from api.services.exceptions import WorkspaceNotFoundError
 from api.services.workspace_service import WorkspaceService
@@ -49,6 +50,7 @@ class WorkspaceUpdate(BaseModel):
     name: str | None = None
     client_name: str | None = None
     base_config: AssumptionsOverride | None = None
+    personas: list[Persona] | None = None
 
     @field_validator("client_name")
     @classmethod
@@ -115,6 +117,18 @@ async def update_workspace(
     service = _get_service(request)
     try:
         return service.update_workspace(workspace_id, body)
+    except WorkspaceNotFoundError:
+        raise HTTPException(
+            status_code=404, detail=f"Workspace {workspace_id} not found"
+        )
+
+
+@router.post("/{workspace_id}/personas/reset", response_model=Workspace)
+async def reset_personas(workspace_id: UUID, request: Request) -> Workspace:
+    """Reset workspace personas to defaults."""
+    service = _get_service(request)
+    try:
+        return service.reset_personas(workspace_id)
     except WorkspaceNotFoundError:
         raise HTTPException(
             status_code=404, detail=f"Workspace {workspace_id} not found"
