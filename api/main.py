@@ -1,4 +1,4 @@
-"""RetireModel API - FastAPI application entry point."""
+"""PlanAlign Retirement Modeler API - FastAPI application entry point."""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -36,7 +36,7 @@ def create_app(base_path: Path | None = None) -> FastAPI:
         get_default_loader()  # Load scenario matrices once into memory
         yield
 
-    application = FastAPI(title="RetireModel API", lifespan=lifespan)
+    application = FastAPI(title="PlanAlign Retirement Modeler API", lifespan=lifespan)
 
     application.add_middleware(
         CORSMiddleware,

@@ -1,4 +1,4 @@
-"""ir-model CLI — dev tooling for the RetireModel project."""
+"""ir-model CLI — dev tooling for the PlanAlign Retirement Modeler project."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def _free_port(port: int) -> None:
 
 @click.group()
 def main() -> None:
-    """RetireModel development CLI."""
+    """PlanAlign Retirement Modeler development CLI."""
 
 
 @main.command()

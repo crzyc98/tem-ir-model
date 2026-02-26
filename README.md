@@ -1,4 +1,4 @@
-# RetireModel
+# PlanAlign Retirement Modeler
 
 Retirement plan income replacement modeling tool. Enables plan sponsors, consultants, and analysts to simulate retirement outcomes for hypothetical employees under various plan designs using Monte Carlo simulation.
 

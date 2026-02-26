@@ -59,17 +59,17 @@ export default function Sidebar({
         {collapsed ? (
           <div className="flex w-full justify-center">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-              R
+              P
             </div>
           </div>
         ) : (
           <>
             <div className="flex flex-1 items-center gap-2.5">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-                R
+                P
               </div>
               <span className="whitespace-nowrap text-lg font-semibold tracking-tight text-brand-500">
-                RetireModel
+                PlanAlign
               </span>
             </div>
             <button
