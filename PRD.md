@@ -1161,18 +1161,26 @@ and assumptions used. Accessible via a download button on the results dashboard.
 ### S16 — Global Settings & Assumption Defaults
 
 ```
-/speckit.specify Build the settings page with two sections: (1) global defaults for 
-new workspaces including inflation rate (default 2.5%), salary growth rate (default 
-inflation + 1.5%), current-year IRS limits (compensation limit, deferral limit, 
-additions limit, catch-up limits, SS taxable maximum), and the historical data 
-year range used for return sampling; (2) Monte Carlo configuration defaults including 
-number of simulations (default 250), retirement age (default 67), planning age 
-(default 93), and Social Security claiming age (default 67). Changes to global 
-defaults apply to newly created workspaces but do not retroactively change existing 
-ones. Include a "restore system defaults" button.
-```
+/speckit.specify Build the global settings page with two sections: 
 
-**Produces:** Settings page with editable assumption tables and Monte Carlo config, persistence to a global config file, and restore defaults functionality.
+(1) Economic & IRS assumption defaults for new workspaces: inflation rate 
+(default 2.5%), salary growth rate (default inflation + 1.5% = 4.0%), 
+current-year IRS limits (compensation limit $360,000, 402(g) deferral limit 
+$24,500, 415 annual additions limit $72,000, catch-up 50+ $8,000, super 
+catch-up 60-63 $11,250, SS taxable maximum $184,500), and target replacement 
+ratio setting (default: "use income-based lookup table" with option to override 
+with a flat percentage applied to all personas). 
+
+(2) Simulation configuration defaults: retirement age (default 67), planning 
+age (default 93), and Social Security claiming age (default 67). Note: number 
+of simulations is fixed at 250 per the scenario matrix architecture and is 
+not configurable — display it as read-only for transparency.
+
+Global defaults are persisted to a separate config file (~/.retiremodel/global_defaults.yaml), 
+distinct from any workspace config. Changes apply only to newly created workspaces 
+and do not retroactively modify existing ones. Include a "restore system defaults" 
+button that resets all values to the hardcoded application defaults.
+Produces: Global settings page with editable assumption tables and simulation config, persistence to ~/.retiremodel/global_defaults.yaml, read-only display of fixed parameters (num_simulations=250), target replacement ratio mode selector, and restore defaults functionality.
 
 ---
 

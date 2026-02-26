@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import DashboardPage from './pages/DashboardPage'
+import GlobalSettingsPage from './pages/GlobalSettingsPage'
 import PersonaModelingPage from './pages/PersonaModelingPage'
 import PlanComparisonPage from './pages/PlanComparisonPage'
 import ScenariosPage from './pages/ScenariosPage'
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/scenarios/:scenarioId" element={<ScenarioEditPage />} />
         <Route path="/scenarios" element={<ScenariosPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/global-settings" element={<GlobalSettingsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

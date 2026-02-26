@@ -39,4 +39,5 @@ class Assumptions(BaseModel):
     super_catchup_limit: float = Field(default=11_250, gt=0)   # SECURE 2.0 age 60–63
     additions_limit: float = Field(default=70_000, gt=0)       # §415(c) total additions
     comp_limit: float = Field(default=345_000, gt=0)           # §401(a)(17) comp cap
+    ss_taxable_max: float = Field(default=176_100, gt=0)       # SS wage base (current-year taxable maximum)
     target_replacement_ratio_override: float | None = Field(default=None, ge=0.0, le=1.0)

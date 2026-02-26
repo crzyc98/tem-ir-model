@@ -5,8 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from api.models.assumptions import Assumptions
 from api.models.base import _utc_now
 from api.models.defaults import default_personas
+from api.models.global_defaults import GlobalDefaults
+from api.models.monte_carlo_config import MonteCarloConfig
 from api.models.workspace import Workspace
 from api.services.config_resolver import resolve_config
 from api.storage.workspace_store import WorkspaceStore
@@ -21,13 +24,48 @@ class WorkspaceService:
     def __init__(self, store: WorkspaceStore) -> None:
         self._store = store
 
-    def create_workspace(self, client_name: str, name: str | None = None) -> Workspace:
-        """Create a new workspace with default personas and assumptions."""
+    def create_workspace(
+        self,
+        client_name: str,
+        name: str | None = None,
+        global_defaults: GlobalDefaults | None = None,
+    ) -> Workspace:
+        """Create a new workspace seeded from global defaults (or hardcoded defaults)."""
+        d = global_defaults or GlobalDefaults()
+
+        base_config = Assumptions(
+            inflation_rate=d.inflation_rate,
+            salary_real_growth_rate=d.salary_real_growth_rate,
+            comp_limit=d.comp_limit,
+            deferral_limit=d.deferral_limit,
+            additions_limit=d.additions_limit,
+            catchup_limit=d.catchup_limit,
+            super_catchup_limit=d.super_catchup_limit,
+            ss_taxable_max=d.ss_taxable_max,
+            target_replacement_ratio_override=(
+                d.target_replacement_ratio_override
+                if d.target_replacement_ratio_mode == "flat_percentage"
+                else None
+            ),
+        )
+
+        monte_carlo_config = MonteCarloConfig(
+            retirement_age=d.retirement_age,
+            planning_age=d.planning_age,
+        )
+
+        personas = [
+            p.model_copy(update={"ss_claiming_age": d.ss_claiming_age})
+            for p in default_personas()
+        ]
+
         now = _utc_now()
         workspace = Workspace(
             name=name or client_name,
             client_name=client_name,
-            personas=default_personas(),
+            base_config=base_config,
+            monte_carlo_config=monte_carlo_config,
+            personas=personas,
             created_at=now,
             updated_at=now,
         )

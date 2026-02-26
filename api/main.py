@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 
 from api.routers.comparisons import router as comparisons_router
+from api.routers.global_settings import router as global_settings_router
 from api.routers.health import router as health_router
 from api.routers.scenarios import router as scenarios_router
 from api.routers.simulations import router as simulations_router
@@ -16,6 +17,7 @@ from api.routers.ss_estimate import router as ss_estimate_router
 from api.routers.workspace_archive import router as workspace_archive_router
 from api.routers.workspaces import router as workspaces_router
 from api.services.scenario_matrix_loader import get_default_loader
+from api.storage.global_defaults_store import GlobalDefaultsStore
 from api.storage.workspace_store import WorkspaceStore
 
 DEFAULT_BASE_PATH = Path.home() / ".retiremodel"
@@ -23,7 +25,9 @@ DEFAULT_BASE_PATH = Path.home() / ".retiremodel"
 
 def create_app(base_path: Path | None = None) -> FastAPI:
     """Create and configure the FastAPI application."""
-    store = WorkspaceStore(base_path or DEFAULT_BASE_PATH)
+    bp = base_path or DEFAULT_BASE_PATH
+    store = WorkspaceStore(bp)
+    defaults_store = GlobalDefaultsStore(bp)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -42,11 +46,13 @@ def create_app(base_path: Path | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Store the workspace store on app state for dependency injection
+    # Store stores on app state for dependency injection
     application.state.workspace_store = store
+    application.state.global_defaults_store = defaults_store
 
     api_router = APIRouter(prefix="/api/v1")
     api_router.include_router(health_router)
+    api_router.include_router(global_settings_router, prefix="/global-settings")
     api_router.include_router(workspace_archive_router)
     api_router.include_router(workspaces_router, prefix="/workspaces")
     api_router.include_router(

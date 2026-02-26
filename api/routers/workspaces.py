@@ -11,6 +11,7 @@ from api.models.persona import Persona
 from api.models.workspace import Workspace
 from api.services.exceptions import WorkspaceNotFoundError
 from api.services.workspace_service import WorkspaceService
+from api.storage.global_defaults_store import GlobalDefaultsStore
 from api.storage.workspace_store import WorkspaceStore
 
 router = APIRouter()
@@ -75,9 +76,15 @@ def _get_service(request: Request) -> WorkspaceService:
 
 @router.post("", status_code=201, response_model=Workspace)
 async def create_workspace(body: WorkspaceCreate, request: Request) -> Workspace:
-    """Create a new workspace with default assumptions and personas."""
+    """Create a new workspace seeded from global defaults."""
     service = _get_service(request)
-    return service.create_workspace(client_name=body.client_name, name=body.name)
+    defaults_store: GlobalDefaultsStore = request.app.state.global_defaults_store
+    global_defaults = defaults_store.load()
+    return service.create_workspace(
+        client_name=body.client_name,
+        name=body.name,
+        global_defaults=global_defaults,
+    )
 
 
 @router.get("", response_model=list[WorkspaceSummary])
