@@ -1,4 +1,5 @@
 import type { WorkspaceSummary, HealthStatus, Workspace, WorkspaceCreate, WorkspaceUpdate } from '../types/workspace'
+import type { GlobalSettings } from '../types/global-settings'
 import type { Persona } from '../types/persona'
 import type { ScenarioSummary, ScenarioResponse, ScenarioCreate, ScenarioUpdate } from '../types/scenario'
 import type { SimulationRequest, SimulationResponse } from '../types/simulation'
@@ -258,6 +259,36 @@ export class ImportConflictError extends Error {
     this.archive_client_name = detail.archive_client_name
     this.existing_workspace_id = detail.existing_workspace_id
   }
+}
+
+// ============ GLOBAL SETTINGS (Feature 014) ============
+
+export async function getGlobalSettings(): Promise<GlobalSettings> {
+  const response = await fetch(`${API_BASE}/global-settings`)
+  if (!response.ok) {
+    throw new Error(`Failed to load global settings: HTTP ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function saveGlobalSettings(settings: GlobalSettings): Promise<GlobalSettings> {
+  const response = await fetch(`${API_BASE}/global-settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to save global settings: HTTP ${response.status}`)
+  }
+  return response.json()
+}
+
+export async function restoreGlobalSettings(): Promise<GlobalSettings> {
+  const response = await fetch(`${API_BASE}/global-settings/restore`, { method: 'POST' })
+  if (!response.ok) {
+    throw new Error(`Failed to restore global settings: HTTP ${response.status}`)
+  }
+  return response.json()
 }
 
 export async function importWorkspace(

@@ -4,6 +4,7 @@ import {
   Users,
   GitCompare,
   FolderOpen,
+  Globe,
   Settings,
   PanelLeftOpen,
   PanelLeftClose,
@@ -23,6 +24,7 @@ const navEntries: NavEntry[] = [
   { kind: 'link', label: 'Plan Comparison', icon: GitCompare, to: '/plans' },
   { kind: 'link', label: 'Scenarios', icon: FolderOpen, to: '/scenarios' },
   { kind: 'link', label: 'Settings', icon: Settings, to: '/settings' },
+  { kind: 'link', label: 'Global Settings', icon: Globe, to: '/global-settings' },
 ]
 
 interface SidebarProps {
