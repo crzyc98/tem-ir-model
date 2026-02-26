@@ -22,6 +22,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-24
 - N/A — compute-and-return model; no result persistence (011-results-dashboard)
 - Python 3.12 (backend), TypeScript 5.8.2 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4, openpyxl ≥3.1 (new), React 19, Vite 6.2 (012-excel-export)
 - JSON files on local filesystem (existing; read-only for this feature — no new persistence) (012-excel-export)
+- Python 3.12 (backend), TypeScript 5.8.2 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4 (backend); React 19, react-router-dom 7.1, Tailwind CSS 3.4, lucide-react 0.469 (frontend) (013-workspace-export-import)
+- JSON files on local filesystem at `~/.retiremodel/workspaces/{id}/` (existing) (013-workspace-export-import)
 
 - Python 3.12 + Pydantic 2.10.4, FastAPI 0.115.6 (existing) (001-core-data-models)
 
@@ -41,9 +43,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.12: Follow standard conventions
 
 ## Recent Changes
+- 013-workspace-export-import: Added Python 3.12 (backend), TypeScript 5.8.2 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4 (backend); React 19, react-router-dom 7.1, Tailwind CSS 3.4, lucide-react 0.469 (frontend)
 - 012-excel-export: Added Python 3.12 (backend), TypeScript 5.8.2 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4, openpyxl ≥3.1 (new), React 19, Vite 6.2
 - 011-results-dashboard: Added Python 3.12 (backend), TypeScript 5.8.2 / React 19 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy >= 1.26 (backend); react-router-dom 7.1, recharts 2.15, tailwindcss 3.4.17, lucide-react 0.469 (frontend — all existing)
-- 010-persona-gallery: Added Python 3.12 (backend), TypeScript 5.8.2 / React 19 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4 (backend); react-router-dom 7.1, tailwindcss 3.4.17, recharts 2.15, lucide-react 0.469, @tailwindcss/forms 0.5.9 (frontend)
 
 
 <!-- MANUAL ADDITIONS START -->

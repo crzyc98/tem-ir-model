@@ -1,4 +1,4 @@
-import { FolderOpen, Trash2 } from 'lucide-react'
+import { Download, FolderOpen, Trash2 } from 'lucide-react'
 import type { WorkspaceSummary } from '../types/workspace'
 
 function formatRelativeTime(dateString: string): string {
@@ -21,6 +21,8 @@ interface WorkspaceCardProps {
   scenarioCount: number | null
   onClick: () => void
   onDelete: () => void
+  onExport: () => void
+  isExporting?: boolean
 }
 
 export default function WorkspaceCard({
@@ -28,23 +30,44 @@ export default function WorkspaceCard({
   scenarioCount,
   onClick,
   onDelete,
+  onExport,
+  isExporting = false,
 }: WorkspaceCardProps) {
   return (
     <div
       className="relative cursor-pointer rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
       onClick={onClick}
     >
-      <button
-        type="button"
-        className="absolute right-4 top-4 rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-        onClick={(e) => {
-          e.stopPropagation()
-          onDelete()
-        }}
-        aria-label="Delete workspace"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+      <div className="absolute right-4 top-4 flex items-center gap-1">
+        <button
+          type="button"
+          className="rounded p-1 text-gray-400 hover:bg-blue-50 hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={(e) => {
+            e.stopPropagation()
+            onExport()
+          }}
+          aria-label="Export workspace"
+          disabled={isExporting}
+          title="Export workspace"
+        >
+          {isExporting ? (
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+        </button>
+        <button
+          type="button"
+          className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          aria-label="Delete workspace"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
 
       <h3 className="text-lg font-semibold text-gray-800">
         {workspace.client_name}
