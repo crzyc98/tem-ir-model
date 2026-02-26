@@ -71,9 +71,10 @@ export default function ResultsSummaryTable({ personas, confidenceLevel }: Resul
                   {p.pos_assessment}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-500">
-                  {p.shortfall_age_p50 !== null && p.shortfall_age_p50 !== undefined
-                    ? `Age ${p.shortfall_age_p50}`
-                    : '—'}
+                  {(() => {
+                    const sa = pField === 'p10' ? p.shortfall_age_p10 : pField === 'p25' ? p.shortfall_age_p25 : p.shortfall_age_p50
+                    return sa !== null && sa !== undefined ? `Age ${sa}` : '—'
+                  })()}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-700">
                   {formatCurrency(p.total_employer_contributions)}

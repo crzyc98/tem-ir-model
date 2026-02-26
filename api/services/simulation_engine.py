@@ -405,13 +405,17 @@ class SimulationEngine:
 
         # Probability of success + shortfall age
         probability_of_success = 1.0
+        shortfall_age_p10: int | None = None
+        shortfall_age_p25: int | None = None
         shortfall_age_p50: int | None = None
         if distribution_years > 0:
             final_balances = all_balances[-1]
             probability_of_success = float(np.sum(final_balances > 0) / n)
             failed = shortfall_ages[~np.isnan(shortfall_ages)]
             if len(failed) > 0:
-                shortfall_age_p50 = int(np.median(failed))
+                shortfall_age_p10 = int(np.percentile(failed, 10))
+                shortfall_age_p25 = int(np.percentile(failed, 25))
+                shortfall_age_p50 = int(np.percentile(failed, 50))
 
         income_replacement_ratio: PercentileValues | None = None
         if distribution_years > 0:
@@ -457,6 +461,8 @@ class SimulationEngine:
             probability_of_success=round(probability_of_success, 4),
             income_replacement_ratio=income_replacement_ratio,
             projected_salary_at_retirement=round(projected_salary, 2),
+            shortfall_age_p10=shortfall_age_p10,
+            shortfall_age_p25=shortfall_age_p25,
             shortfall_age_p50=shortfall_age_p50,
             pos_assessment=_pos_assessment(round(probability_of_success, 4)),
             target_replacement_ratio=round(target_ratio, 4),

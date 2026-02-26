@@ -29,6 +29,8 @@ export interface PersonaSimulationResult {
   probability_of_success: number
   income_replacement_ratio: PercentileValues | null
   projected_salary_at_retirement: number
+  shortfall_age_p10: number | null
+  shortfall_age_p25: number | null
   shortfall_age_p50: number | null
   pos_assessment: string
   target_replacement_ratio: number | null

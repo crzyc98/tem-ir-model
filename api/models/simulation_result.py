@@ -42,6 +42,8 @@ class PersonaSimulationResult(BaseModel):
     probability_of_success: float = 1.0
     income_replacement_ratio: PercentileValues | None = None
     projected_salary_at_retirement: float = 0.0
+    shortfall_age_p10: int | None = None
+    shortfall_age_p25: int | None = None
     shortfall_age_p50: int | None = None
     pos_assessment: str = "On Track"
     target_replacement_ratio: float | None = None
