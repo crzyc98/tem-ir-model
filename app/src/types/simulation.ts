@@ -20,7 +20,7 @@ export interface PersonaSimulationResult {
   persona_id: string
   persona_name: string
   retirement_balance: PercentileValues
-  annual_withdrawal: PercentileValues | null
+  annual_retirement_income: PercentileValues | null
   ss_annual_benefit: number
   total_retirement_income: PercentileValues | null
   trajectory: YearSnapshot[]

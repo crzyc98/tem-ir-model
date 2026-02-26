@@ -152,10 +152,10 @@ class TestRetirementBalances:
 
 
 class TestWithdrawal:
-    def test_annual_withdrawal_present_for_all(self, all_results):
+    def test_annual_retirement_income_present_for_all(self, all_results):
         for name, result in all_results.items():
-            assert result.annual_withdrawal is not None, f"{name}: missing annual_withdrawal"
-            assert result.annual_withdrawal.p50 >= 0, f"{name}: negative p50 annual_withdrawal"
+            assert result.annual_retirement_income is not None, f"{name}: missing annual_retirement_income"
+            assert result.annual_retirement_income.p50 >= 0, f"{name}: negative p50 annual_retirement_income"
 
     def test_income_replacement_ratio_present(self, all_results):
         for name, result in all_results.items():

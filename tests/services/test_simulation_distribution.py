@@ -295,9 +295,12 @@ class TestWithdrawalPercentileValues:
             assert abs(w - first_w) / first_w < 0.01
 
 
-class TestAnnualWithdrawalHeadline:
-    def test_annual_withdrawal_present(self):
-        """PersonaSimulationResult.annual_withdrawal matches year 1 withdrawal."""
+class TestAnnualRetirementIncomeHeadline:
+    def test_annual_retirement_income_is_annuity_derived(self):
+        """annual_retirement_income = retirement_balance / annuity_factor at each percentile."""
+        import math
+        from datetime import UTC, datetime
+
         persona = _jordan_persona()
         config = MonteCarloConfig(
             num_simulations=100, seed=42, retirement_age=67, planning_age=93
@@ -308,14 +311,21 @@ class TestAnnualWithdrawalHeadline:
             config=config,
         )
         results = engine.run([persona])
-        aw = results[0].annual_withdrawal
-        assert aw is not None
-        # Should match the first distribution year's withdrawal percentiles
-        first_dist = [s for s in results[0].trajectory if s.age >= 67][0]
-        assert aw.p25 == first_dist.withdrawal.p25
-        assert aw.p50 == first_dist.withdrawal.p50
-        assert aw.p75 == first_dist.withdrawal.p75
-        assert aw.p90 == first_dist.withdrawal.p90
+        result = results[0]
+
+        ari = result.annual_retirement_income
+        assert ari is not None
+        assert ari.p50 > 0
+
+        # Verify ordering: higher balance → higher income
+        assert result.retirement_balance.p90 > result.retirement_balance.p50
+        assert ari.p90 > ari.p50
+        assert ari.p25 < ari.p50
+
+        # total_retirement_income = dc_income + ss (scalar)
+        tri = result.total_retirement_income
+        assert tri is not None
+        assert abs(tri.p50 - (ari.p50 + result.ss_annual_benefit)) < 0.01
 
 
 class TestSimulationResponsePlanningAge:

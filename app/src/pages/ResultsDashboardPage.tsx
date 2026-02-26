@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useOutletContext, useParams } from 'react-router-dom'
-import { BarChart3, Play, AlertTriangle } from 'lucide-react'
+import { BarChart3, Play, AlertTriangle, Download } from 'lucide-react'
 import type { LayoutContext } from '../types/workspace'
 import type { ScenarioResponse } from '../types/scenario'
 import type { SimulationResponse, ConfidenceLevel } from '../types/simulation'
-import { getScenario, runSimulation } from '../services/api'
+import { getScenario, runSimulation, exportSimulationExcel } from '../services/api'
 import ResultsSummaryTable from '../components/ResultsSummaryTable'
 import IncomeReplacementChart from '../components/IncomeReplacementChart'
 import TrajectoryChart from '../components/TrajectoryChart'
@@ -37,6 +37,23 @@ export default function ResultsDashboardPage() {
   useEffect(() => {
     loadScenario()
   }, [loadScenario])
+
+  const handleExportExcel = async () => {
+    if (!activeWorkspace || !scenarioId || !simulationResult) return
+    try {
+      const blob = await exportSimulationExcel(activeWorkspace.id, scenarioId, simulationResult)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${scenario?.name ?? 'simulation'}_results.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed:', err)
+    }
+  }
 
   const handleRunSimulation = async () => {
     if (!activeWorkspace || !scenarioId) return
@@ -85,24 +102,37 @@ export default function ResultsDashboardPage() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleRunSimulation}
-            disabled={loading}
-            className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
-          >
-            {loading ? (
-              <>
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Running...
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4" />
-                Run Simulation
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={!simulationResult}
+              aria-disabled={!simulationResult}
+              title={simulationResult ? 'Download Excel report' : 'Run simulation first to enable export'}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              Download Excel
+            </button>
+            <button
+              type="button"
+              onClick={handleRunSimulation}
+              disabled={loading}
+              className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Running...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" />
+                  Run Simulation
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
