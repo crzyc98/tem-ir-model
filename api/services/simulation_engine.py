@@ -280,7 +280,9 @@ class SimulationEngine:
         planning_age = self._config.planning_age
         distribution_years = planning_age - retirement_age + 1
         all_withdrawals: list[np.ndarray] = []
-        annual_withdrawal: PercentileValues | None = None
+
+        # Saved after the dist_params block for the annuity calculation below.
+        r_real_at_retirement: float = 0.0
 
         if distribution_years > 0:
             retirement_balances = balances.copy()
@@ -297,6 +299,7 @@ class SimulationEngine:
                 + short_term * a.cash.expected_return
             )
             r_real = (1.0 + r_nominal) / (1.0 + a.inflation_rate) - 1.0
+            r_real_at_retirement = r_real
 
             dist_params = {
                 "total_years": distribution_years,
@@ -386,26 +389,15 @@ class SimulationEngine:
             p90=retirement_snap.p90,
         )
 
-        # Headline annual withdrawal: percentiles of real withdrawal from year 1
-        if all_withdrawals:
-            aw_pcts = np.percentile(all_withdrawals[0], PERCENTILES)
-            annual_withdrawal = PercentileValues(
-                p10=round(float(aw_pcts[0]), 2),
-                p25=round(float(aw_pcts[1]), 2),
-                p50=round(float(aw_pcts[2]), 2),
-                p75=round(float(aw_pcts[3]), 2),
-                p90=round(float(aw_pcts[4]), 2),
-            )
-
+        # --- Annuity-derived income (scenario-specific, varies by retirement balance) ---
+        # annual_retirement_income = DC portfolio income at each percentile
+        #   = retirement_balance_pXX / annuity_factor
+        # total_retirement_income  = dc_income + ss_annual
+        # income_replacement_ratio = total_income / projected_salary
+        # This is independent of the expense-gap withdrawal, so it differs
+        # across plan scenarios for the same persona.
+        annual_retirement_income: PercentileValues | None = None
         total_retirement_income: PercentileValues | None = None
-        if annual_withdrawal is not None:
-            total_retirement_income = PercentileValues(
-                p10=round(annual_withdrawal.p10 + ss_annual, 2),
-                p25=round(annual_withdrawal.p25 + ss_annual, 2),
-                p50=round(annual_withdrawal.p50 + ss_annual, 2),
-                p75=round(annual_withdrawal.p75 + ss_annual, 2),
-                p90=round(annual_withdrawal.p90 + ss_annual, 2),
-            )
 
         # Contribution totals
         total_employee_contributions = float(np.median(cum_deferrals))
@@ -422,20 +414,41 @@ class SimulationEngine:
                 shortfall_age_p50 = int(np.median(failed))
 
         income_replacement_ratio: PercentileValues | None = None
-        if total_retirement_income is not None and projected_salary > 0:
-            income_replacement_ratio = PercentileValues(
-                p10=round(total_retirement_income.p10 / projected_salary, 4),
-                p25=round(total_retirement_income.p25 / projected_salary, 4),
-                p50=round(total_retirement_income.p50 / projected_salary, 4),
-                p75=round(total_retirement_income.p75 / projected_salary, 4),
-                p90=round(total_retirement_income.p90 / projected_salary, 4),
+        if distribution_years > 0:
+            annuity_factor = (
+                (1.0 - (1.0 + r_real_at_retirement) ** (-distribution_years))
+                / r_real_at_retirement
+                if r_real_at_retirement > 1e-6
+                else float(distribution_years)
             )
+            annual_retirement_income = PercentileValues(
+                p10=round(retirement_balance.p10 / annuity_factor, 2),
+                p25=round(retirement_balance.p25 / annuity_factor, 2),
+                p50=round(retirement_balance.p50 / annuity_factor, 2),
+                p75=round(retirement_balance.p75 / annuity_factor, 2),
+                p90=round(retirement_balance.p90 / annuity_factor, 2),
+            )
+            total_retirement_income = PercentileValues(
+                p10=round(annual_retirement_income.p10 + ss_annual, 2),
+                p25=round(annual_retirement_income.p25 + ss_annual, 2),
+                p50=round(annual_retirement_income.p50 + ss_annual, 2),
+                p75=round(annual_retirement_income.p75 + ss_annual, 2),
+                p90=round(annual_retirement_income.p90 + ss_annual, 2),
+            )
+            if projected_salary > 0:
+                income_replacement_ratio = PercentileValues(
+                    p10=round(total_retirement_income.p10 / projected_salary, 4),
+                    p25=round(total_retirement_income.p25 / projected_salary, 4),
+                    p50=round(total_retirement_income.p50 / projected_salary, 4),
+                    p75=round(total_retirement_income.p75 / projected_salary, 4),
+                    p90=round(total_retirement_income.p90 / projected_salary, 4),
+                )
 
         return PersonaSimulationResult(
             persona_id=persona.id,
             persona_name=persona.name,
             retirement_balance=retirement_balance,
-            annual_withdrawal=annual_withdrawal,
+            annual_retirement_income=annual_retirement_income,
             ss_annual_benefit=ss_annual,
             total_retirement_income=total_retirement_income,
             trajectory=trajectory,

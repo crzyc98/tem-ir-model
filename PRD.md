@@ -1144,17 +1144,17 @@ individual workspace settings.
 
 ---
 
-### S15 — Scenario Results Export (CSV)
+### S15 — Scenario Results Export (Excel)
 
 ```
 /speckit.specify Add the ability to export simulation results from a scenario as a 
-CSV file. The CSV should include one row per persona with columns for all key metrics 
+Excel file. The Excel should include one row per persona with columns for all key metrics 
 (projected balance, income replacement ratio at each confidence level, probability of 
 success, total contributions). Include a header section with the plan design summary 
 and assumptions used. Accessible via a download button on the results dashboard.
 ```
 
-**Produces:** CSV export API endpoint, formatted output with plan design header, and download button in the results dashboard UI.
+**Produces:** Excel export API endpoint, formatted output with plan design header, and download button in the results dashboard UI.
 
 ---
 

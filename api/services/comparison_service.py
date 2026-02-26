@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from api.models.assumptions import Assumptions
 from api.models.comparison import PlanComparison, ScenarioComparisonResult
 from api.models.monte_carlo_config import MonteCarloConfig
 from api.models.persona import Persona
@@ -129,7 +128,7 @@ class ComparisonService:
 def _bisect_deferral_for_80pct_ir(
     persona: Persona,
     scenario: Scenario,
-    effective: Assumptions,
+    effective,
     config: MonteCarloConfig,
 ) -> float | None:
     """Find the minimum deferral rate (0–20%) that achieves p50 IR >= 80%.

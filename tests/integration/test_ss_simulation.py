@@ -55,8 +55,8 @@ class TestSSToggleOn:
         result = results[0]
         assert result.ss_annual_benefit > 0
 
-    def test_total_retirement_income_equals_withdrawal_plus_ss(self):
-        """SC-003: total_retirement_income.p50 == annual_withdrawal.p50 + ss_annual_benefit."""
+    def test_total_retirement_income_equals_dc_plus_ss(self):
+        """total_retirement_income.p50 == annual_retirement_income.p50 + ss_annual_benefit."""
         persona = _make_persona(include_social_security=True)
         config = MonteCarloConfig(
             num_simulations=100, seed=42, retirement_age=67, planning_age=93
@@ -66,23 +66,23 @@ class TestSSToggleOn:
         )
         results = engine.run([persona])
         result = results[0]
-        assert result.annual_withdrawal is not None
+        assert result.annual_retirement_income is not None
         assert result.total_retirement_income is not None
         assert abs(
             result.total_retirement_income.p50
-            - (result.annual_withdrawal.p50 + result.ss_annual_benefit)
+            - (result.annual_retirement_income.p50 + result.ss_annual_benefit)
         ) < 0.01
         assert abs(
             result.total_retirement_income.p25
-            - (result.annual_withdrawal.p25 + result.ss_annual_benefit)
+            - (result.annual_retirement_income.p25 + result.ss_annual_benefit)
         ) < 0.01
         assert abs(
             result.total_retirement_income.p75
-            - (result.annual_withdrawal.p75 + result.ss_annual_benefit)
+            - (result.annual_retirement_income.p75 + result.ss_annual_benefit)
         ) < 0.01
         assert abs(
             result.total_retirement_income.p90
-            - (result.annual_withdrawal.p90 + result.ss_annual_benefit)
+            - (result.annual_retirement_income.p90 + result.ss_annual_benefit)
         ) < 0.01
 
 
@@ -99,8 +99,8 @@ class TestSSToggleOff:
         results = engine.run([persona])
         assert results[0].ss_annual_benefit == 0.0
 
-    def test_total_equals_withdrawal_when_off(self):
-        """SC-004: total_retirement_income equals annual_withdrawal when SS off."""
+    def test_total_equals_dc_income_when_ss_off(self):
+        """total_retirement_income equals annual_retirement_income when SS is off."""
         persona = _make_persona(include_social_security=False)
         config = MonteCarloConfig(
             num_simulations=100, seed=42, retirement_age=67, planning_age=93
@@ -110,17 +110,17 @@ class TestSSToggleOff:
         )
         results = engine.run([persona])
         result = results[0]
-        assert result.annual_withdrawal is not None
+        assert result.annual_retirement_income is not None
         assert result.total_retirement_income is not None
-        assert result.total_retirement_income.p25 == result.annual_withdrawal.p25
-        assert result.total_retirement_income.p50 == result.annual_withdrawal.p50
-        assert result.total_retirement_income.p75 == result.annual_withdrawal.p75
-        assert result.total_retirement_income.p90 == result.annual_withdrawal.p90
+        assert result.total_retirement_income.p25 == result.annual_retirement_income.p25
+        assert result.total_retirement_income.p50 == result.annual_retirement_income.p50
+        assert result.total_retirement_income.p75 == result.annual_retirement_income.p75
+        assert result.total_retirement_income.p90 == result.annual_retirement_income.p90
 
 
-class TestWithdrawalReducedBySS:
-    def test_annual_withdrawal_lower_with_ss_on(self):
-        """Expense-gap semantics: SS fills part of the income gap, reducing portfolio withdrawal."""
+class TestSSImpactOnTotalIncome:
+    def test_total_income_higher_with_ss_on(self):
+        """SS adds to total_retirement_income; portfolio income (annuity) is the same either way."""
         plan = _simple_plan()
         assumptions = Assumptions()
         config = MonteCarloConfig(
@@ -129,7 +129,7 @@ class TestWithdrawalReducedBySS:
 
         persona_on = _make_persona(include_social_security=True, name="On")
         persona_off = _make_persona(include_social_security=False, name="Off")
-        # Use same persona id for deterministic comparison
+        # Same persona id → same wage-growth seed → same retirement balance
         persona_off = persona_off.model_copy(update={"id": persona_on.id})
 
         engine_on = SimulationEngine(
@@ -142,15 +142,24 @@ class TestWithdrawalReducedBySS:
         )
         results_off = engine_off.run([persona_off])
 
-        aw_on = results_on[0].annual_withdrawal
-        aw_off = results_off[0].annual_withdrawal
-        assert aw_on is not None
-        assert aw_off is not None
-        # With SS on, portfolio withdrawal is lower (SS covers part of the expense gap)
-        assert aw_on.p50 < aw_off.p50
+        ri_on = results_on[0].annual_retirement_income
+        ri_off = results_off[0].annual_retirement_income
+        assert ri_on is not None
+        assert ri_off is not None
+
+        # Portfolio income (balance / annuity_factor) is identical because
+        # SS has no effect on the accumulation phase or the retirement balance.
+        assert ri_on.p50 == ri_off.p50
+
+        # Total income is higher when SS is on
+        tot_on = results_on[0].total_retirement_income
+        tot_off = results_off[0].total_retirement_income
+        assert tot_on is not None and tot_off is not None
+        assert tot_on.p50 > tot_off.p50
+
         # The difference equals the SS benefit
         ss_benefit = results_on[0].ss_annual_benefit
-        assert abs((aw_off.p50 - aw_on.p50) - ss_benefit) < 0.01
+        assert abs((tot_on.p50 - tot_off.p50) - ss_benefit) < 0.01
 
 
 class TestMixedPersonas:
@@ -190,8 +199,8 @@ class TestBackwardCompatibility:
 
 
 class TestNoDistributionPhase:
-    def test_at_retirement_age_total_income_none(self):
-        """Persona at retirement age → no distribution → total_retirement_income is None."""
+    def test_at_retirement_age_income_none(self):
+        """Persona at retirement age → no distribution → income fields are None."""
         persona = _make_persona(age=67, salary=100_000)
         config = MonteCarloConfig(
             num_simulations=100, seed=42, retirement_age=67, planning_age=93
@@ -200,7 +209,7 @@ class TestNoDistributionPhase:
             assumptions=Assumptions(), plan_design=_simple_plan(), config=config
         )
         results = engine.run([persona])
-        assert results[0].annual_withdrawal is None
+        assert results[0].annual_retirement_income is None
         assert results[0].total_retirement_income is None
 
 

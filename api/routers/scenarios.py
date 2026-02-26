@@ -1,15 +1,19 @@
 """Scenario REST API endpoints."""
 
+import io
 from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
 from api.models.assumptions import Assumptions
 from api.models.assumptions_override import AssumptionsOverride
 from api.models.irs_warning import IrsLimitWarning
 from api.models.plan_design import PlanDesign
+from api.models.simulation_result import SimulationResponse
+from api.services.excel_export_service import export_filename, generate_workbook
 from api.services.exceptions import ScenarioNotFoundError, WorkspaceNotFoundError
 from api.services.scenario_service import ScenarioService
 from api.storage.scenario_store import ScenarioStore
@@ -244,6 +248,36 @@ async def delete_scenario(
             status_code=404,
             detail=f"Scenario {scenario_id} not found in workspace {workspace_id}",
         )
+
+
+@router.post("/{scenario_id}/export")
+async def export_simulation(
+    workspace_id: UUID,
+    scenario_id: UUID,
+    body: SimulationResponse,
+    request: Request,
+) -> StreamingResponse:
+    """Export simulation results as an .xlsx file."""
+    service = _get_service(request)
+    try:
+        scenario, _effective, _warnings = service.get_scenario(workspace_id, scenario_id)
+    except WorkspaceNotFoundError:
+        raise HTTPException(
+            status_code=404, detail=f"Workspace {workspace_id} not found"
+        )
+    except ScenarioNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Scenario {scenario_id} not found in workspace {workspace_id}",
+        )
+
+    xlsx_bytes = generate_workbook(scenario, body)
+    filename = export_filename(scenario.name)
+    return StreamingResponse(
+        io.BytesIO(xlsx_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/{scenario_id}/duplicate", status_code=201, response_model=ScenarioResponse)

@@ -167,6 +167,25 @@ export async function runSimulation(
   return response.json()
 }
 
+export async function exportSimulationExcel(
+  workspaceId: string,
+  scenarioId: string,
+  simulationResult: SimulationResponse,
+): Promise<Blob> {
+  const response = await fetch(
+    `${API_BASE}/workspaces/${workspaceId}/scenarios/${scenarioId}/export`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(simulationResult),
+    },
+  )
+  if (!response.ok) {
+    throw new Error(`Failed to export simulation: HTTP ${response.status}`)
+  }
+  return response.blob()
+}
+
 export async function runComparison(
   workspaceId: string,
   req: { scenario_ids: string[]; persona_id: string },
