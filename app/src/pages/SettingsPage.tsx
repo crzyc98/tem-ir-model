@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useOutletContext, useBlocker, Link } from 'react-router-dom'
-import { Save, CheckCircle } from 'lucide-react'
-import { getWorkspace, updateWorkspace } from '../services/api'
+import { Download, Save, CheckCircle, Upload } from 'lucide-react'
+import { getWorkspace, updateWorkspace, exportWorkspace } from '../services/api'
+import type { ImportResult } from '../services/api'
+import ImportWorkspaceModal from '../components/ImportWorkspaceModal'
 import type { LayoutContext } from '../types/workspace'
 import type { Assumptions } from '../types/assumptions'
 import type { Persona, AssetAllocation } from '../types/persona'
@@ -289,6 +291,9 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
   const blocker = useBlocker(
     useCallback(
@@ -360,6 +365,31 @@ export default function SettingsPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleExport = async () => {
+    if (!activeWorkspace) return
+    setIsExporting(true)
+    setExportError(null)
+    try {
+      const blob = await exportWorkspace(activeWorkspace.id)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${activeWorkspace.client_name}_export.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setExportError((err as Error).message)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleImported = async (_result: ImportResult) => {
+    await refreshWorkspaces()
   }
 
   if (!activeWorkspace) {
@@ -553,6 +583,58 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+
+      {/* Portability */}
+      <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        <h3 className="text-sm font-semibold text-gray-800">Portability</h3>
+        <p className="mt-1 text-xs text-gray-500">
+          Export this workspace as a portable archive or import an archive to create a new workspace.
+        </p>
+
+        {exportError && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+            Export failed: {exportError}
+            <button
+              type="button"
+              className="ml-2 font-medium underline"
+              onClick={() => setExportError(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleExport}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Export Workspace
+          </button>
+
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            onClick={() => setIsImportModalOpen(true)}
+          >
+            <Upload className="h-4 w-4" />
+            Import Workspace
+          </button>
+        </div>
+      </div>
+
+      <ImportWorkspaceModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImported={handleImported}
+      />
 
       {blocker.state === 'blocked' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

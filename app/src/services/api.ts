@@ -218,3 +218,78 @@ export async function deleteComparison(workspaceId: string, comparisonId: string
     throw new Error(`Failed to delete comparison: HTTP ${response.status}`)
   }
 }
+
+// ============ WORKSPACE ARCHIVE (Feature 013) ============
+
+export async function exportWorkspace(workspaceId: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE}/workspaces/${workspaceId}/export`)
+  if (!response.ok) {
+    throw new Error(`Failed to export workspace: HTTP ${response.status}`)
+  }
+  return response.blob()
+}
+
+export interface ImportResult {
+  workspace_id: string
+  workspace_name: string
+  client_name: string
+  scenario_count: number
+  action: 'created' | 'replaced' | 'skipped'
+}
+
+export interface ImportConflictDetail {
+  conflict_type: 'name_conflict'
+  archive_workspace_name: string
+  archive_client_name: string
+  existing_workspace_id: string
+}
+
+export class ImportConflictError extends Error {
+  conflict_type: 'name_conflict'
+  archive_workspace_name: string
+  archive_client_name: string
+  existing_workspace_id: string
+
+  constructor(detail: ImportConflictDetail) {
+    super(`Workspace name conflict: '${detail.archive_workspace_name}' already exists`)
+    this.name = 'ImportConflictError'
+    this.conflict_type = detail.conflict_type
+    this.archive_workspace_name = detail.archive_workspace_name
+    this.archive_client_name = detail.archive_client_name
+    this.existing_workspace_id = detail.existing_workspace_id
+  }
+}
+
+export async function importWorkspace(
+  file: File,
+  options?: { onConflict?: 'rename' | 'replace' | 'skip'; newName?: string },
+): Promise<ImportResult> {
+  const url = new URL(`${window.location.origin}${API_BASE}/workspaces/import`)
+  if (options?.onConflict) url.searchParams.set('on_conflict', options.onConflict)
+  if (options?.newName) url.searchParams.set('new_name', options.newName)
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(url.toString(), { method: 'POST', body: formData })
+
+  if (response.status === 409) {
+    const body = await response.json()
+    const detail = body.detail as ImportConflictDetail
+    throw new ImportConflictError(detail)
+  }
+
+  if (!response.ok) {
+    let message = `Failed to import workspace: HTTP ${response.status}`
+    try {
+      const body = await response.json()
+      if (body.detail?.detail) message = body.detail.detail
+      else if (typeof body.detail === 'string') message = body.detail
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(message)
+  }
+
+  return response.json()
+}

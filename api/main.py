@@ -13,6 +13,7 @@ from api.routers.health import router as health_router
 from api.routers.scenarios import router as scenarios_router
 from api.routers.simulations import router as simulations_router
 from api.routers.ss_estimate import router as ss_estimate_router
+from api.routers.workspace_archive import router as workspace_archive_router
 from api.routers.workspaces import router as workspaces_router
 from api.services.scenario_matrix_loader import get_default_loader
 from api.storage.workspace_store import WorkspaceStore
@@ -46,6 +47,7 @@ def create_app(base_path: Path | None = None) -> FastAPI:
 
     api_router = APIRouter(prefix="/api/v1")
     api_router.include_router(health_router)
+    api_router.include_router(workspace_archive_router)
     api_router.include_router(workspaces_router, prefix="/workspaces")
     api_router.include_router(
         scenarios_router,
