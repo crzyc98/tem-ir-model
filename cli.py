@@ -81,7 +81,7 @@ def start(api_only: bool, ui_only: bool, port: int, ui_port: int) -> None:
         if not api_only:
             _free_port(ui_port)
             click.echo(f"  Starting UI  on http://localhost:{ui_port}")
-            npm = "npm"
+            npm = "npm.cmd" if sys.platform == "win32" else "npm"
             ui_proc = subprocess.Popen(
                 [npm, "run", "dev", "--", "--port", str(ui_port)],
                 cwd=APP_DIR,
