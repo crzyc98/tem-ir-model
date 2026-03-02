@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 
 from api.routers.comparisons import router as comparisons_router
+from api.routers.workforce_analysis import router as workforce_analysis_router
 from api.routers.global_settings import router as global_settings_router
 from api.routers.health import router as health_router
 from api.routers.scenarios import router as scenarios_router
@@ -73,6 +74,7 @@ def create_app(base_path: Path | None = None) -> FastAPI:
         prefix="/workspaces/{workspace_id}/comparisons",
         tags=["comparisons"],
     )
+    api_router.include_router(workforce_analysis_router)
     application.include_router(api_router)
 
     return application

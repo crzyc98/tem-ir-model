@@ -4,6 +4,7 @@ import type { Persona } from '../types/persona'
 import type { ScenarioSummary, ScenarioResponse, ScenarioCreate, ScenarioUpdate } from '../types/scenario'
 import type { SimulationRequest, SimulationResponse } from '../types/simulation'
 import type { PlanComparison } from '../types/comparison'
+import type { WorkforceAnalyzeResponse } from '../types/workforce_analysis'
 
 const API_BASE = '/api/v1'
 
@@ -218,6 +219,24 @@ export async function deleteComparison(workspaceId: string, comparisonId: string
   if (!response.ok) {
     throw new Error(`Failed to delete comparison: HTTP ${response.status}`)
   }
+}
+
+// ============ WORKFORCE ANALYSIS (Feature 001-persona-scenario-analysis) ============
+
+export async function runWorkforceAnalysis(
+  workspaceId: string,
+  req: { scenario_ids: string[] },
+): Promise<WorkforceAnalyzeResponse> {
+  const response = await fetch(`${API_BASE}/workspaces/${workspaceId}/analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error((err as { detail?: string }).detail ?? `Analysis failed (${response.status})`)
+  }
+  return response.json()
 }
 
 // ============ WORKSPACE ARCHIVE (Feature 013) ============

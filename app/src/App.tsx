@@ -9,6 +9,7 @@ import ScenarioCreatePage from './pages/ScenarioCreatePage'
 import ScenarioEditPage from './pages/ScenarioEditPage'
 import SettingsPage from './pages/SettingsPage'
 import ResultsDashboardPage from './pages/ResultsDashboardPage'
+import AnalyzePage from './pages/AnalyzePage'
 import NotFoundPage from './pages/NotFoundPage'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/personas" element={<PersonaModelingPage />} />
         <Route path="/plans" element={<PlanComparisonPage />} />
+        <Route path="/analyze" element={<AnalyzePage />} />
         <Route path="/scenarios/new" element={<ScenarioCreatePage />} />
         <Route path="/scenarios/:scenarioId/results" element={<ResultsDashboardPage />} />
         <Route path="/scenarios/:scenarioId" element={<ScenarioEditPage />} />
