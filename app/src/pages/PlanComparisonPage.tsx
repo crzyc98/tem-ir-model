@@ -79,7 +79,7 @@ export default function PlanComparisonPage() {
       if (prev.includes(id)) {
         return prev.filter((s) => s !== id)
       }
-      if (prev.length >= 4) return prev
+      if (prev.length >= 8) return prev
       return [...prev, id]
     })
   }
@@ -135,7 +135,7 @@ export default function PlanComparisonPage() {
           <GitCompare className="h-6 w-6 text-brand-500" />
           <div>
             <h2 className="text-lg font-semibold text-gray-800">Plan Comparison</h2>
-            <p className="text-sm text-gray-500">Compare 2–4 plan designs side by side for a single persona</p>
+            <p className="text-sm text-gray-500">Compare 2–8 plan designs side by side for a single persona</p>
           </div>
         </div>
       </div>
@@ -223,7 +223,7 @@ export default function PlanComparisonPage() {
               <GitCompare className="mx-auto h-12 w-12 text-gray-300" />
               <h3 className="mt-4 text-base font-medium text-gray-700">No comparison results yet</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Select 2–4 scenarios and a persona, then click "Run Comparison".
+                Select 2–8 scenarios and a persona, then click "Run Comparison".
               </p>
             </div>
           )}

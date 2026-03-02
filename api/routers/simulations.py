@@ -62,13 +62,14 @@ async def run_simulation(
     seed = body.seed if (body is not None and body.seed is not None) else mc.seed
     config = mc.model_copy(update={"seed": seed})
 
-    # Run simulation
+    # Run simulation (exclude hidden personas)
+    active_personas = [p for p in workspace.personas if not p.hidden]
     engine = SimulationEngine(
         assumptions=effective,
         plan_design=scenario.plan_design,
         config=config,
     )
-    persona_results = engine.run(workspace.personas)
+    persona_results = engine.run(active_personas)
 
     # Update last_run_at
     updated_scenario = scenario.model_copy(update={"last_run_at": _utc_now()})

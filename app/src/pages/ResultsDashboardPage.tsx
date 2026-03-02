@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useOutletContext, useParams } from 'react-router-dom'
 import { BarChart3, Play, AlertTriangle, Download } from 'lucide-react'
-import type { LayoutContext } from '../types/workspace'
+import type { LayoutContext, Workspace } from '../types/workspace'
 import type { ScenarioResponse } from '../types/scenario'
 import type { SimulationResponse, ConfidenceLevel } from '../types/simulation'
-import { getScenario, runSimulation, exportSimulationExcel } from '../services/api'
+import { getScenario, getWorkspace, runSimulation, exportSimulationExcel } from '../services/api'
 import ResultsSummaryTable from '../components/ResultsSummaryTable'
 import IncomeReplacementChart from '../components/IncomeReplacementChart'
 import TrajectoryChart from '../components/TrajectoryChart'
@@ -15,6 +15,7 @@ export default function ResultsDashboardPage() {
   const { scenarioId } = useParams<{ scenarioId: string }>()
 
   const [scenario, setScenario] = useState<ScenarioResponse | null>(null)
+  const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [simulationResult, setSimulationResult] = useState<SimulationResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadingScenario, setLoadingScenario] = useState(true)
@@ -25,8 +26,12 @@ export default function ResultsDashboardPage() {
     if (!activeWorkspace || !scenarioId) return
     setLoadingScenario(true)
     try {
-      const result = await getScenario(activeWorkspace.id, scenarioId)
-      setScenario(result)
+      const [scenarioResult, ws] = await Promise.all([
+        getScenario(activeWorkspace.id, scenarioId),
+        getWorkspace(activeWorkspace.id),
+      ])
+      setScenario(scenarioResult)
+      setWorkspace(ws)
     } catch (err) {
       console.error('Failed to load scenario:', err)
     } finally {
@@ -68,6 +73,17 @@ export default function ResultsDashboardPage() {
       setLoading(false)
     }
   }
+
+  // Filter simulation results to exclude personas currently hidden in the workspace
+  const hiddenPersonaIds = new Set(
+    workspace?.personas.filter((p) => p.hidden).map((p) => p.id) ?? []
+  )
+  const visibleSimulationResult = simulationResult
+    ? {
+        ...simulationResult,
+        personas: simulationResult.personas.filter((p) => !hiddenPersonaIds.has(p.persona_id)),
+      }
+    : null
 
   if (!activeWorkspace) {
     return (
@@ -171,7 +187,7 @@ export default function ResultsDashboardPage() {
       )}
 
       {/* Results — no personas case */}
-      {simulationResult && simulationResult.personas.length === 0 && (
+      {visibleSimulationResult && visibleSimulationResult.personas.length === 0 && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-500" />
           <p className="text-sm text-amber-700">
@@ -181,7 +197,7 @@ export default function ResultsDashboardPage() {
       )}
 
       {/* Results */}
-      {simulationResult && simulationResult.personas.length > 0 && (
+      {visibleSimulationResult && visibleSimulationResult.personas.length > 0 && (
         <>
           {/* Confidence Level Toggle */}
           <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white px-6 py-4 shadow-sm">
@@ -195,7 +211,7 @@ export default function ResultsDashboardPage() {
             <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
               <h3 className="mb-4 text-base font-semibold text-gray-800">Income Replacement Ratio</h3>
               <IncomeReplacementChart
-                personas={simulationResult.personas}
+                personas={visibleSimulationResult.personas}
                 confidenceLevel={confidenceLevel}
               />
             </div>
@@ -204,10 +220,10 @@ export default function ResultsDashboardPage() {
             <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
               <h3 className="mb-4 text-base font-semibold text-gray-800">Lifetime Balance Trajectory</h3>
               <TrajectoryChart
-                personas={simulationResult.personas}
+                personas={visibleSimulationResult.personas}
                 confidenceLevel={confidenceLevel}
-                retirementAge={simulationResult.retirement_age}
-                planningAge={simulationResult.planning_age}
+                retirementAge={visibleSimulationResult.retirement_age}
+                planningAge={visibleSimulationResult.planning_age}
               />
             </div>
           </div>
@@ -216,7 +232,7 @@ export default function ResultsDashboardPage() {
           <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-base font-semibold text-gray-800">Summary</h3>
             <ResultsSummaryTable
-              personas={simulationResult.personas}
+              personas={visibleSimulationResult.personas}
               confidenceLevel={confidenceLevel}
             />
           </div>

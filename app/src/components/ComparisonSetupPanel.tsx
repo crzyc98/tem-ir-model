@@ -34,7 +34,7 @@ export default function ComparisonSetupPanel({
       <div className="mt-4">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-gray-700">Scenarios</p>
-          <span className="text-xs text-gray-400">{selectedScenarioIds.length}/4 selected</span>
+          <span className="text-xs text-gray-400">{selectedScenarioIds.length}/8 selected</span>
         </div>
         <div className="mt-2 space-y-2">
           {scenarios.length === 0 ? (
@@ -43,7 +43,7 @@ export default function ComparisonSetupPanel({
             scenarios.map((scenario, idx) => {
               const isChecked = selectedScenarioIds.includes(scenario.id)
               const colorIdx = selectedScenarioIds.indexOf(scenario.id)
-              const isDisabled = !isChecked && selectedScenarioIds.length >= 4
+              const isDisabled = !isChecked && selectedScenarioIds.length >= 8
               return (
                 <label
                   key={scenario.id}

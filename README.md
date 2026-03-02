@@ -1,6 +1,35 @@
-# PlanAlign Retirement Modeler
+  # PlanAlign Retirement Modeler
 
-Retirement plan income replacement modeling tool. Enables plan sponsors, consultants, and analysts to simulate retirement outcomes for hypothetical employees under various plan designs using Monte Carlo simulation.
+  PlanAlign is a retirement plan design analysis tool built for **plan sponsors, benefits consultants, and analysts** who need to evaluate how their defined contribution plan design affects employee retirement outcomes.
+
+  ## What It Does
+
+  Most retirement readiness questions come down to one core question: *will employees have enough income in retirement?* PlanAlign answers that question by modeling projected retirement income replacement rates — the percentage of pre-retirement income that a retiree can sustain — across a realistic range of market and longevity scenarios.
+
+  **Key capabilities:**
+
+  - **Compare plan designs side-by-side** — Model your current plan alongside alternative designs (e.g., changing the employer match formula, adding an auto-escalation feature, adjusting vesting schedules) to see how each design affects projected retirement income replacement rates.
+  - **Simulate diverse employee populations** — Use built-in persona templates representing different employee archetypes (early-career, mid-career, near-retirement) or define custom profiles by age, salary, savings rate, and years to retirement.
+  - **Stress-test outcomes with Monte Carlo simulation** — Run thousands of market return scenarios to understand the distribution of potential outcomes, not just a single optimistic projection. See median, 25th-percentile, and 75th-percentile results.
+  - **Factor in Social Security** — Estimated Social Security benefits are incorporated into income replacement calculations using SSA bend-point formulas, giving a realistic picture of total retirement income.
+  - **Model withdrawal strategies** — Evaluate how different withdrawal approaches (fixed percentage, dynamic spending rules) affect portfolio longevity and income sustainability.
+  - **Export results** — Download scenario results to Excel for further analysis or client presentations.
+
+  ## Who It's For
+
+  | Role | How PlanAlign Helps |
+  |------|---------------------|
+  | **Plan sponsors** | Understand whether your current plan design produces adequate retirement outcomes for your workforce, and evaluate design changes before implementation. |
+  | **Benefits consultants** | Quickly model and compare plan design alternatives for clients with quantitative, scenario-based evidence. |
+  | **HR / Finance teams** | Assess the cost-benefit tradeoff of plan design changes (e.g., increased match) against the improvement in projected employee retirement readiness. |
+
+  ## Typical Workflow
+
+  1. **Create a workspace** for a client or plan.
+  2. **Define scenarios** — each scenario represents a plan design (current or proposed) paired with an employee profile.
+  3. **Run simulations** — Monte Carlo engine projects outcomes across thousands of market return paths.
+  4. **Review the Results Dashboard** — compare income replacement rates, shortfall probabilities, and portfolio survival rates across scenarios.
+  5. **Export** results to Excel for reporting or further analysis.
 
 ## Prerequisites
 

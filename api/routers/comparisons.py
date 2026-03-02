@@ -20,7 +20,7 @@ router = APIRouter()
 class ComparisonRequest(BaseModel):
     """Request body for running a plan comparison."""
 
-    scenario_ids: list[UUID] = Field(min_length=2, max_length=4)
+    scenario_ids: list[UUID] = Field(min_length=2, max_length=8)
     persona_id: UUID
 
 
