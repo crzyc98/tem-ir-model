@@ -151,9 +151,9 @@ def _bisect_deferral_for_80pct_ir(
     if _get_p50_ir(0.20) < 0.80:
         return None
 
-    # Bisect over [0.0, 0.20] for 12 iterations
+    # Bisect over [0.0, 0.20] for 7 iterations (~0.15% precision, sufficient for display)
     lo, hi = 0.0, 0.20
-    for _ in range(12):
+    for _ in range(7):
         mid = (lo + hi) / 2.0
         if _get_p50_ir(mid) >= 0.80:
             hi = mid
