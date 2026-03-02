@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { ComparisonScenarioDisplay } from '../types/comparison'
 import type { ConfidenceLevel, PercentileValues } from '../types/simulation'
 import { CONFIDENCE_PERCENTILE_MAP } from '../types/simulation'
@@ -172,8 +173,8 @@ export default function ComparisonMetricsTable({
             </th>
             {/* Comparison columns */}
             {comparisons.map((s) => (
-              <>
-                <th key={`val_${s.scenarioId}`} className="px-3 py-3 text-right font-medium text-gray-800">
+              <Fragment key={s.scenarioId}>
+                <th className="px-3 py-3 text-right font-medium text-gray-800">
                   <div className="flex items-center justify-end gap-1.5">
                     <span
                       className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0"
@@ -182,10 +183,10 @@ export default function ComparisonMetricsTable({
                     {s.scenarioName}
                   </div>
                 </th>
-                <th key={`delta_${s.scenarioId}`} className="px-3 py-3 text-right font-medium text-gray-500 text-xs">
+                <th className="px-3 py-3 text-right font-medium text-gray-500 text-xs">
                   vs. {baseline.scenarioName}
                 </th>
-              </>
+              </Fragment>
             ))}
           </tr>
         </thead>
@@ -201,21 +202,20 @@ export default function ComparisonMetricsTable({
                 {comparisons.map((s) => {
                   const val = row.getValue(s)
                   return (
-                    <>
-                      <td key={`val_${s.scenarioId}`} className="px-3 py-2.5 text-right text-gray-800">
+                    <Fragment key={s.scenarioId}>
+                      <td className="px-3 py-2.5 text-right text-gray-800">
                         {row.renderScenario ? row.renderScenario(s) : row.renderCell(val)}
                       </td>
                       {row.noDelta ? (
-                        <td key={`delta_${s.scenarioId}`} className="px-3 py-2.5 text-right text-xs text-gray-400">—</td>
+                        <td className="px-3 py-2.5 text-right text-xs text-gray-400">—</td>
                       ) : (
                         <DeltaCell
-                          key={`delta_${s.scenarioId}`}
                           base={baseVal}
                           value={val}
                           format={row.format}
                         />
                       )}
-                    </>
+                    </Fragment>
                   )
                 })}
               </tr>

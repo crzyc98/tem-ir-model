@@ -27,7 +27,7 @@ class PlanComparison(BaseModel):
     workspace_id: UUID
     persona_id: UUID
     persona_name: str
-    scenario_ids: list[UUID] = Field(min_length=2, max_length=4)
+    scenario_ids: list[UUID] = Field(min_length=2, max_length=8)
     results: list[ScenarioComparisonResult]
     num_simulations: int
     seed: int | None
