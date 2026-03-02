@@ -26,6 +26,7 @@ Auto-generated from all feature plans. Last updated: 2026-02-24
 - JSON files on local filesystem at `~/.retiremodel/workspaces/{id}/` (existing) (013-workspace-export-import)
 - Python 3.12 (backend), TypeScript 5.8.2 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4, pyyaml ≥6.0 (already present); React 19, Tailwind CSS 3.4, lucide-react 0.469 (all existing) (014-global-settings)
 - `~/.retiremodel/global_defaults.yaml` (new file, same base path as existing workspace store) (014-global-settings)
+- Python 3.12 (backend), TypeScript 5.8.2 / React 19 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy ≥ 1.26 (backend); react-router-dom 7.1, recharts 2.15, lucide-react 0.469, Tailwind CSS 3.4, @tailwindcss/forms 0.5.9 (frontend) — all existing, no new dependencies (001-persona-scenario-analysis)
 
 - Python 3.12 + Pydantic 2.10.4, FastAPI 0.115.6 (existing) (001-core-data-models)
 
@@ -45,9 +46,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.12: Follow standard conventions
 
 ## Recent Changes
+- 001-persona-scenario-analysis: Added Python 3.12 (backend), TypeScript 5.8.2 / React 19 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4, NumPy ≥ 1.26 (backend); react-router-dom 7.1, recharts 2.15, lucide-react 0.469, Tailwind CSS 3.4, @tailwindcss/forms 0.5.9 (frontend) — all existing, no new dependencies
 - 014-global-settings: Added Python 3.12 (backend), TypeScript 5.8.2 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4, pyyaml ≥6.0 (already present); React 19, Tailwind CSS 3.4, lucide-react 0.469 (all existing)
 - 013-workspace-export-import: Added Python 3.12 (backend), TypeScript 5.8.2 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4 (backend); React 19, react-router-dom 7.1, Tailwind CSS 3.4, lucide-react 0.469 (frontend)
-- 012-excel-export: Added Python 3.12 (backend), TypeScript 5.8.2 (frontend) + FastAPI 0.115.6, Pydantic 2.10.4, openpyxl ≥3.1 (new), React 19, Vite 6.2
 
 
 <!-- MANUAL ADDITIONS START -->
