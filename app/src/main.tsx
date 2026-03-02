@@ -11,6 +11,8 @@ import ScenarioEditPage from './pages/ScenarioEditPage'
 import SettingsPage from './pages/SettingsPage'
 import ResultsDashboardPage from './pages/ResultsDashboardPage'
 import NotFoundPage from './pages/NotFoundPage'
+import AnalyzePage from './pages/AnalyzePage'
+import GlobalSettingsPage from './pages/GlobalSettingsPage'
 import './index.css'
 
 const router = createBrowserRouter([
@@ -21,11 +23,13 @@ const router = createBrowserRouter([
       { path: '/dashboard', element: <DashboardPage /> },
       { path: '/personas', element: <PersonaModelingPage /> },
       { path: '/plans', element: <PlanComparisonPage /> },
+      { path: '/analyze', element: <AnalyzePage /> },
       { path: '/scenarios/new', element: <ScenarioCreatePage /> },
       { path: '/scenarios/:scenarioId/results', element: <ResultsDashboardPage /> },
       { path: '/scenarios/:scenarioId', element: <ScenarioEditPage /> },
       { path: '/scenarios', element: <ScenariosPage /> },
       { path: '/settings', element: <SettingsPage /> },
+      { path: '/global-settings', element: <GlobalSettingsPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
